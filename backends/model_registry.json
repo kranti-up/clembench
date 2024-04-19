@@ -444,5 +444,20 @@
     "huggingface_id": "google/gemma-7b-it",
     "premade_chat_template": true,
     "eos_to_cull": "<eos>"
+  },
+  {
+    "model_name": "remote-codeLlama-34b-instruct-hf",
+    "model_id": "codellama/codeLlama-34b-Instruct-hf",
+    "backend": "huggingface_remote"
+  },
+  {
+    "model_name": "remote-mistral-7b-instruct-v0.2",
+    "model_id": "mistralai/Mistral-7B-Instruct-v0.2",
+    "backend": "huggingface_remote"
+  },
+  {
+    "model_name": "remote-llama-2-7b-chat-hf",
+    "model_id": "meta-llama/Llama-2-7b-chat-hf",
+    "backend": "huggingface_remote"
   }
 ]
