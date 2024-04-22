@@ -459,5 +459,35 @@
     "model_name": "remote-llama-2-7b-chat-hf",
     "model_id": "meta-llama/Llama-2-7b-chat-hf",
     "backend": "huggingface_remote"
-  }
+  },
+  {
+    "model_name": "remote-llama-2-13b-chat-hf",
+    "model_id": "meta-llama/Llama-2-13b-chat-hf",
+    "backend": "huggingface_remote"
+  },
+  {
+    "model_name": "remote-llama-2-70b-chat-hf",
+    "model_id": "meta-llama/Llama-2-70b-chat-hf",
+    "backend": "huggingface_remote"
+  },
+  {
+    "model_name": "remote-llama-3-8b-hf",
+    "model_id": "meta-llama/Meta-Llama-3-8B",
+    "backend": "huggingface_remote"
+  },
+  {
+    "model_name": "remote-llama-3-8b-instruct-hf",
+    "model_id": "meta-llama/Meta-Llama-3-8B-Instruct",
+    "backend": "huggingface_remote"
+  },
+  {
+    "model_name": "remote-llama-3-70b-instruct-hf",
+    "model_id": "meta-llama/Meta-Llama-3-70B-Instruct",
+    "backend": "huggingface_remote"
+  },    
+  {
+    "model_name": "remote-llama-3-8b-bnb-4bit-hf",
+    "model_id": "unsloth/llama-3-8b-bnb-4bit",
+    "backend": "huggingface_remote"
+  }  
 ]
