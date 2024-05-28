@@ -4,7 +4,7 @@ results
 results_eval
 /venv
 evaltmp.ipynb
-
+results*
 # Wordlists https://www.kaggle.com/datasets/rtatman/english-word-frequency
 unigram_freq.csv
 
