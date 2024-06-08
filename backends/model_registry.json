@@ -461,6 +461,11 @@
     "backend": "huggingface_remote"
   },
   {
+    "model_name": "remote-llama-2-7b-hf",
+    "model_id": "meta-llama/Llama-2-7b-hf",
+    "backend": "huggingface_remote"
+  },  
+  {
     "model_name": "remote-llama-2-13b-chat-hf",
     "model_id": "meta-llama/Llama-2-13b-chat-hf",
     "backend": "huggingface_remote"
@@ -470,6 +475,11 @@
     "model_id": "meta-llama/Llama-2-70b-chat-hf",
     "backend": "huggingface_remote"
   },
+  {
+    "model_name": "remote-llama-2-70b-hf",
+    "model_id": "meta-llama/Llama-2-70b-hf",
+    "backend": "huggingface_remote"
+  },  
   {
     "model_name": "remote-llama-3-8b-hf",
     "model_id": "meta-llama/Meta-Llama-3-8B",
@@ -489,5 +499,45 @@
     "model_name": "remote-llama-3-8b-bnb-4bit-hf",
     "model_id": "unsloth/llama-3-8b-bnb-4bit",
     "backend": "huggingface_remote"
+  },
+  {
+    "model_name": "anyscale-llama-3-8b-instruct-hf",
+    "model_id": "meta-llama/Meta-Llama-3-8B-Instruct",
+    "backend": "openai_compatible"
+  },
+  {
+    "model_name": "anyscale-llama-3-70b-instruct-hf",
+    "model_id": "meta-llama/Meta-Llama-3-70B-Instruct",
+    "backend": "openai_compatible"
+  },
+  {
+    "model_name": "anyscale-mixtral8x22b-instruct-hf",
+    "model_id": "mistralai/Mixtral-8x22B-Instruct-v0.1",
+    "backend": "openai_compatible"
+  },
+  {
+    "model_name": "anyscale-mixtral8x7b-instruct-hf",
+    "model_id": "mistralai/Mixtral-8x7B-Instruct-v0.1",
+    "backend": "openai_compatible"
+  },
+  {
+    "model_name": "anyscale-llama-2-70b-hf",
+    "model_id": "meta-llama/Meta-Llama-2-70B",
+    "backend": "openai_compatible"
+  },
+  {
+    "model_name": "anyscale-llama-2-70b-chat-hf",
+    "model_id": "meta-llama/Meta-Llama-2-70B-chat",
+    "backend": "openai_compatible"
+  },
+  {
+    "model_name": "groq-llama-3-70b-instruct-hf",
+    "model_id": "llama3-70b-8192",
+    "backend": "openai_compatible"
+  },
+  {
+    "model_name": "groq-llama-3-8b-instruct-hf",
+    "model_id": "llama3-8b-8192",
+    "backend": "openai_compatible"
   }  
 ]
