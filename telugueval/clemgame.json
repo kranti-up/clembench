@@ -1,0 +1,9 @@
+{
+  "game_name": "telugueval",
+  "description": "Hello game between a greeter and a greeted players",
+  "main_game": "telugueval",
+  "players": "one",
+  "image": "none",
+  "languages": ["te"],
+  "benchmark": []
+}
