@@ -47,6 +47,7 @@ class CleanTestData:
 
     def run(self, filenames):
         number_letter_mapping_milu = {"A": 1, "B": 2, "C": 3, "D": 4}
+        answer_increment_include = {0: 1, 1: 2, 2: 3, 3: 4}
         
         for filename in filenames:
             if "milu" in filename or "include" in filename:
@@ -58,16 +59,17 @@ class CleanTestData:
             df = pd.read_excel(filepath)
             print(f"Number of rows in the file:{filename} - {df.shape[0]}")
             json_data = []
-            
+
+            df['answer'] = df['answer'].apply(lambda x: number_letter_mapping_milu.get(x, int(x)))            
             if "milu" in filename:
                 df['choices'] = df['choices'].apply(CleanTestData.fix_malformed_list_milu)
             elif "include" in filename:
                 df['choices'] = df['choices'].apply(CleanTestData.fix_malformed_list_include)
+                df["answer"] = df["answer"].apply(lambda x: answer_increment_include.get(x, x))
 
 
             for constraint in [("choices-clean", "4"), ("questions-clean", ["concerns - S", "concerns - K"], "NoConcerns")]:
                 df_processed = self.apply_constraints(df, constraint)
-                df_processed['answer'] = df_processed['answer'].apply(lambda x: number_letter_mapping_milu.get(x, int(x)))
                 df_processed['question'] = df_processed.apply(lambda row: f"{row['question']}\n1. {row['choices'][0]}\n2. {row['choices'][1]}\n3. {row['choices'][2]}\n4. {row['choices'][3]}", axis=1)
 
                 json_data = df_processed[['question', 'choices', 'answer']].rename(columns={'answer': 'answer_gt'}).to_dict(orient='records')
