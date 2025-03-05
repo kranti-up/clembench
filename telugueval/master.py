@@ -54,7 +54,7 @@ class TeluguEvalGame(DialogueGameMaster):
 
     def _on_setup(self, **game_instance):
         self.game_instance = game_instance  # fetch game parameters here
-        self.eval_answer = game_instance["answer"]
+        self.eval_answer = game_instance["answer_gt"]
 
         # Create the players
         self.guesser = Guesser(self.model_a)
@@ -107,26 +107,28 @@ class TeluguEvalGame(DialogueGameMaster):
             answer_match = re.search(rf'{self.required_tags[1]}\s*:\s*(.+)', utterance, re.UNICODE)
             gen_explanation = None
             gen_answer = None
+            raw_answer = None
             if explanation_match:
                 gen_explanation = explanation_match.group(1)
                 logger.info(f"Extracted Explanation: {gen_explanation}")
             if answer_match:
-                gen_answer = answer_match.group(1)
-                if bool(re.fullmatch(r"\d+", gen_answer)):
-                    gen_answer = int(gen_answer)
+                raw_answer = answer_match.group(1)
+                match = re.search(r'\d+', raw_answer)
+                if match:
+                    gen_answer = int(match.group())
                 else:
                     gen_answer = None
                 logger.info(f"Extracted Answer: {gen_answer}")
-            return {"explanation": gen_explanation, "answer": gen_answer}, True
+            return {"explanation": gen_explanation, "raw_answer": raw_answer, "answer": gen_answer}, True
 
 
     def _after_add_player_response(self, player: Player, response: Dict):
         logger.info(f"Received player response: {response} {self.required_tags}")
+        self.log_to_self("Answer Validation", {"ground truth": self.eval_answer, "generated": response['answer'], "success": self.success})
         if player == self.guesser:
             #Do the validation here
             if response['explanation'] is None or response['answer'] is None:
                 self.abort = True
-                self.log_to_self("Answer Validation", {"ground truth": self.eval_answer, "generated": response, "success": self.success})
                 return
 
             gen_answer = response["answer"]
@@ -138,7 +140,6 @@ class TeluguEvalGame(DialogueGameMaster):
             else:
                 logger.info("Incorrect answer")
                 self.lost = True
-            self.log_to_self("Answer Validation", {"ground truth": self.eval_answer, "generated": gen_answer, "success": self.success})
 
     def _log_game_end(self):
         # log everything that is needed for score calculation and game evaluation
