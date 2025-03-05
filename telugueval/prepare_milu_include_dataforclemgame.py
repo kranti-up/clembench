@@ -39,7 +39,8 @@ class CleanTestData:
         df_processed = df[df['choices'].apply(len) == 4]
 
         if constraints[0] == "questions-clean":
-            df_processed = df_processed[df_processed[constraints[1]] == constraints[2]]
+            df_processed = df_processed[(df_processed[constraints[1][0]] == constraints[2]) &
+                                         (df_processed[constraints[1][1]] == constraints[2])]
 
         return df_processed
 
@@ -64,7 +65,7 @@ class CleanTestData:
                 df['choices'] = df['choices'].apply(CleanTestData.fix_malformed_list_include)
 
 
-            for constraint in [("choices-clean", "4"), ("questions-clean", "concerns - K", "NoConcerns")]:
+            for constraint in [("choices-clean", "4"), ("questions-clean", ["concerns - S", "concerns - K"], "NoConcerns")]:
                 df_processed = self.apply_constraints(df, constraint)
                 df_processed['answer'] = df_processed['answer'].apply(lambda x: number_letter_mapping_milu.get(x, int(x)))
                 df_processed['question'] = df_processed.apply(lambda row: f"{row['question']}\n1. {row['choices'][0]}\n2. {row['choices'][1]}\n3. {row['choices'][2]}\n4. {row['choices'][3]}", axis=1)
