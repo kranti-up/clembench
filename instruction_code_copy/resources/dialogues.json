@@ -1,0 +1,35 @@
+{
+    "B15-A38-C8-1523398549691": [
+        {
+            "utterance": "Hello, I want ti diuble check, you have all the block colors, right?. Sorry for mistyping. the keyboard has different spacing from what I am used to.. It looks like we a re building a 3 by 3 table. The legs are orange and in the corners",
+            "action": [
+                "place(color='orange',x=1,y=1,z=-2)",
+                "place(color='orange',x=-1,y=1,z=-2)",
+                "place(color='orange',x=-1,y=1,z=0)",
+                "place(color='orange',x=1,y=1,z=0)"
+            ]
+        },
+        {
+            "utterance": "Then there is a red ring on top of those legs",
+            "action": [
+                "place(color='red',x=1,y=2,z=-2)",
+                "place(color='red',x=-1,y=2,z=0)",
+                "place(color='red',x=1,y=2,z=0)",
+                "place(color='red',x=0,y=2,z=0)",
+                "place(color='red',x=0,y=2,z=-1)",
+                "pick(color='red',x=0,y=4,z=-1)",
+                "pick(color='red',x=0,y=3,z=-1)",
+                "place(color='red',x=1,y=2,z=-1)",
+                "place(color='red',x=-1,y=2,z=-1)",
+                "place(color='red',x=-1,y=2,z=-2)",
+                "place(color='red',x=0,y=2,z=-2)"
+            ]
+        },
+        {
+            "utterance": "Just punch out the middle red block.",
+            "action": [
+                "pick(color='red',x=0,y=2,z=-1)"
+            ]
+        }
+    ]
+}
