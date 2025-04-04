@@ -5,8 +5,8 @@ import sqlite3
 from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-from games.clemtod.dialogue_systems.xuetaldsys.db import query_venue_by_name_or_address
-from games.clemtod.dialogue_systems.xuetaldsys.utils import BOOK_DB_PATH, TableItem, clean_time
+from dialogue_systems.xuetaldsys.db import query_venue_by_name_or_address
+from dialogue_systems.xuetaldsys.utils import BOOK_DB_PATH, TableItem, clean_time
 
 import logging
 

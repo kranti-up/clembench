@@ -2,7 +2,7 @@ import random
 from typing import List
 import json
 
-from clemgame.clemgame import Player
+from clemcore.clemgame import Player
 
 
 class XuetalSpeaker(Player):

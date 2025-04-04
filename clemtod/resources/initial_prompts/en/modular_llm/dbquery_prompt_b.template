@@ -2,7 +2,8 @@ TASK:
 1. Review the previous state and new user input
 2. Update the conversation flow if necessary
 3. Identify missing or unclear information
-4. All responses must strictly adhere to the schema. Include all required fields
+4. All responses must strictly adhere to the schema, ensuring all required fields are included.
+5. The output must be a valid JSON. Ensure that all brackets, braces, and quotes are properly closed. Do not omit any closing characters. Return only a complete, parsable JSON object.
 
 RESPONSE FORMAT:
 1. For proceeding with the booking:
@@ -17,7 +18,7 @@ RESPONSE FORMAT:
    "details": FOLLOW-UP MESSAGE
 }
 
-3. For querying database:
+3. For querying the database:
 {
    "status": "db-query",
    "details": {FILLED SLOTS}

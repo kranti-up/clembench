@@ -6,7 +6,7 @@ import string
 import numpy as np
 import regex as re
 import pandas as pd
-from games.clemtod.dialogue_systems.cetaldsys.DST.dst import GENERAL_TYPO, SLOTS_REMAPPING, SLOTS_REVERSE_REMAPPING, VALUES_FIX
+from dialogue_systems.cetaldsys.DST.dst import GENERAL_TYPO, SLOTS_REMAPPING, SLOTS_REVERSE_REMAPPING, VALUES_FIX
 
 
 def fix_typos(pred):

@@ -12,7 +12,7 @@ from fuzzywuzzy import fuzz
 from nltk.tokenize import word_tokenize
 from langchain.vectorstores import VectorStore
 
-from games.clemtod.dialogue_systems.hetaldsys.loaders import load_sgd
+from dialogue_systems.hetaldsys.loaders import load_sgd
 
 
 def parse_state(state: str, default_domain: str = None) -> Dict[str, str]:

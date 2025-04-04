@@ -1,8 +1,8 @@
 from typing import Dict
 
-from games.clemtod.dialogue_systems.basedsystem import DialogueSystem
-from games.clemtod.dialogue_systems.xuetaldsys.engine import EngineDSystem
-from games.clemtod.dialogue_systems.xuetaldsys.players import XuetalSpeaker
+from dialogue_systems.basedsystem import DialogueSystem
+from dialogue_systems.xuetaldsys.engine import EngineDSystem
+from dialogue_systems.xuetaldsys.players import XuetalSpeaker
 
 class XUETALDialogueSystem(DialogueSystem):
     """A neural network-based dialogue system implementation."""

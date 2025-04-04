@@ -1,8 +1,10 @@
-from clemgame import get_logger
+#from clemgame import get_logger
 
-from games.clemtod.utils import processgenslots
+from utils import processgenslots
 
-logger = get_logger(__name__)
+import logging
+
+logger = logging.getLogger(__name__)
 
 class GameValidator:
     def __init__(self, game_name: str, gt_slots: dict):

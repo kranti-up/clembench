@@ -3,7 +3,7 @@ from transformers import TrainingArguments
 from dataclasses import dataclass, field
 from langchain import PromptTemplate
 
-from games.clemtod.dialogue_systems.cetaldsys.DST.dst import SLOTS_DESCRIPTIONS, SLOTS_REVERSE_REMAPPING
+from dialogue_systems.cetaldsys.DST.dst import SLOTS_DESCRIPTIONS, SLOTS_REVERSE_REMAPPING
 
 class PromptConstructor():
     def __init__(self, 

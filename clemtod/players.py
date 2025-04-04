@@ -3,10 +3,12 @@ from typing import List
 import json
 
 
-from clemgame import get_logger
-from clemgame.clemgame import Player
+#from clemcore import get_logger
+from clemcore.clemgame import Player
 
-logger = get_logger(__name__)
+import logging
+
+logger = logging.getLogger(__name__)
 
 class LLMSpeaker(Player):
     def __init__(self, model_name: str, player: str, task: str, slots: dict):

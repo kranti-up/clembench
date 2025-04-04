@@ -1,7 +1,7 @@
 from typing import Dict
-from games.clemtod.dialogue_systems.basedsystem import DialogueSystem
-from games.clemtod.dialogue_systems.hetaldsys.interact import Interact
-from games.clemtod.dialogue_systems.hetaldsys.players import HetalSpeaker
+from dialogue_systems.basedsystem import DialogueSystem
+from dialogue_systems.hetaldsys.interact import Interact
+from dialogue_systems.hetaldsys.players import HetalSpeaker
 
 class HETALDialogueSystem(DialogueSystem):
     """A neural network-based dialogue system implementation."""

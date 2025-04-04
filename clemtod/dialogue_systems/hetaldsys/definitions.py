@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from games.clemtod.dialogue_systems.hetaldsys.prompts import FewShotPrompt, SimpleTemplatePrompt
+from dialogue_systems.hetaldsys.prompts import FewShotPrompt, SimpleTemplatePrompt
 
 
 sgd_domain_prompt = SimpleTemplatePrompt(template="""

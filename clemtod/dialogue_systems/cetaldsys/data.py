@@ -5,9 +5,9 @@ import pandas as pd
 from tqdm import tqdm
 from langchain import PromptTemplate
 
-from games.clemtod.dialogue_systems.cetaldsys.DST.evaluate_utils import remapping
-from games.clemtod.dialogue_systems.cetaldsys.DST.dst import SLOTS_DESCRIPTIONS
-from games.clemtod.dialogue_systems.cetaldsys.config import CONFIG
+from dialogue_systems.cetaldsys.DST.evaluate_utils import remapping
+from dialogue_systems.cetaldsys.DST.dst import SLOTS_DESCRIPTIONS
+from dialogue_systems.cetaldsys.config import CONFIG
 
 
 class PromptConstructor():

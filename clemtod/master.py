@@ -7,23 +7,27 @@ import importlib
 import numpy as np
 import json
 
-import clemgame.metrics as ms
-from clemgame.clemgame import GameMaster, GameBenchmark, GameScorer
-from clemgame import get_logger
+import clemcore.clemgame.metrics as ms
+from clemcore.clemgame import GameMaster, GameBenchmark, GameScorer, GameSpec
+from clemcore.backends import Model
+#from clemcore import get_logger
 
-from games.clemtod.instancegenerator import GAME_NAME
-from games.clemtod.players import LLMSpeaker
-from games.clemtod.dialogue_systems.factory import get_dialogue_system
-from games.clemtod.computemetrics import ComputeMetrics
-from games.clemtod.gamevalidator import GameValidator
-from games.clemtod.dbquerybuilder import DBQueryBuilder
-from games.clemtod.utils import processgtslots
-from games.clemtod.processbooking import ProcessBooking
+from instancegenerator import GAME_NAME
+from players import LLMSpeaker
+from dialogue_systems.factory import get_dialogue_system
+from computemetrics import ComputeMetrics
+from gamevalidator import GameValidator
+from dbquerybuilder import DBQueryBuilder
+from utils import processgtslots
+from processbooking import ProcessBooking
 
 
 # use the framework logger to log events relevant at runtime;
 # this is independent from the game records / transcript
-logger = get_logger(__name__)
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 global DSYSTEM_ERROR_MESSAGE
 
@@ -32,11 +36,12 @@ class DMSystemMaster(GameMaster):
     def __init__(
         self,
         gamename: str,
+        game_path: str,
         experiment: Dict,
         player_backends: List[str],
         other_modules: classmethod,
     ):
-        super().__init__(gamename, experiment, player_backends)
+        super().__init__(gamename, game_path, experiment, player_backends)
         # save experiment and player attributes that will be necessary later
         self.topic = experiment["name"]
         self.model_a = player_backends[0]
@@ -239,6 +244,11 @@ class DMSystemMaster(GameMaster):
                 "content": f"The game was lost after ({self.n_turns}) turns.",
             }
         self.log_event(from_="GM", to="GM", action=action)
+
+        # Log the prompt of the player to understand the flow
+        action = {"type": "player prompt", "content": self.dsystem.get_player_prompt()}
+        self.log_event(from_="GM", to="GM", action=action)
+
 
         # log a final message saying that the game did came to an end
         action = {"type": "info", "content": "end game"}
@@ -798,8 +808,8 @@ class DMSystemScorer(GameScorer):
 class DMSystemBenchmark(GameBenchmark):
     """Integrate the game into the benchmark run."""
 
-    def __init__(self):
-        super().__init__(GAME_NAME)
+    def __init__(self, game_spec: GameSpec):
+        super().__init__(game_spec)
 
     # defines whether the game is single player or not
     def is_single_player(self):
@@ -813,9 +823,9 @@ class DMSystemBenchmark(GameBenchmark):
 
     # copy this, replacing the name of the game master in the return statement
     def create_game_master(
-        self, experiment: Dict, player_backends: List[str]
+        self, experiment: Dict, player_models: List[Model]
     ) -> GameMaster:
-        return DMSystemMaster(self.name, experiment, player_backends, None)
+        return DMSystemMaster(self.game_name, self.game_path, experiment, player_models, None)
 
-    def create_game_scorer(self, experiment: Dict, game_instance: Dict) -> GameScorer:
-        return DMSystemScorer(self.name, experiment, game_instance)
+    def create_game_scorer(self, experiment_config, game_instance) -> GameScorer:
+        return DMSystemScorer(self.game_name, experiment_config, game_instance)

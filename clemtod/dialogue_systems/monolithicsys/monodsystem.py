@@ -1,7 +1,7 @@
 from typing import Dict, List
-from games.clemtod.dialogue_systems.basedsystem import DialogueSystem
-from games.clemtod.dialogue_systems.monolithicsys.monollm import MonoLLM
-from games.clemtod.dialogue_systems.monolithicsys.players import MonoLLMSpeaker
+from dialogue_systems.basedsystem import DialogueSystem
+from dialogue_systems.monolithicsys.monollm import MonoLLM
+from dialogue_systems.monolithicsys.players import MonoLLMSpeaker
 
 class MONODialogueSystem(DialogueSystem):
     """A neural network-based dialogue system implementation."""

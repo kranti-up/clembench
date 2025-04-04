@@ -1,9 +1,11 @@
 from typing import Dict
-from clemgame import get_logger
-from games.clemtod.utils import generate_reference_number
+#from clemgame import get_logger
+from utils import generate_reference_number
 
 
-logger = get_logger(__name__)
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ProcessBooking:

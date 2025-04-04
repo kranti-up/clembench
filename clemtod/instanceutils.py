@@ -2,14 +2,14 @@ import copy
 import string
 from typing import List, Dict, Tuple
 
-from clemgame import file_utils
+from clemcore.utils import file_utils
 
 
 class MultiWozDataInstance:
     def __init__(self, language: str, game_name: str, taskdialogs: Dict, game_id: int, config: Dict, tsystem: str):
         self.language = language
         self.taskdetails = taskdialogs[game_id]
-        self.db_path = f"games/todsystem/resources/data/{language}/multiwoz"
+        self.db_path = f"resources/data/{language}/multiwoz"
         self.tsytem = tsystem
         self.config = config
         self.game_name = game_name
@@ -46,8 +46,8 @@ class MultiWozDataInstance:
         return db_columns.get(domain, [])   
 
 
-    def _fill_domain_schema(self, gamedata):
-        domain_schema = file_utils.load_json(f"resources/data/{self.language}/multiwoz/schema.json", self.game_name)        
+    def _fill_domain_schema(self, gamedata, domain_schema):
+        #domain_schema = file_utils.load_json(f"resources/data/{self.language}/multiwoz/schema.json", self.game_name)        
         normalized_schema = {}
         gamedata["domaindbkeys"] = {}
         domains = list(gamedata["domains"].keys())
@@ -142,6 +142,6 @@ class MultiWozDataInstance:
         }
         '''
         gamedata["json_schema"] = json_schema
-    def fill_mwoz_details(self, datainstance: Dict):
-        self._fill_domain_schema(datainstance)
+    def fill_mwoz_details(self, datainstance: Dict, domain_schema: Dict ):
+        self._fill_domain_schema(datainstance, domain_schema)
         self._fill_jsonschema(datainstance)

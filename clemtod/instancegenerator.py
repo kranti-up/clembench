@@ -3,9 +3,8 @@ import random
 import string
 from typing import List, Dict, Tuple
 
-from clemgame.clemgame import GameInstanceGenerator
-from clemgame import file_utils
-from games.clemtod.instanceutils import MultiWozDataInstance
+from clemcore.clemgame import GameInstanceGenerator
+from instanceutils import MultiWozDataInstance
 
 # set the name of the game in the script, as you named the directory
 # this name will be used everywhere, including in the table of results
@@ -33,24 +32,31 @@ class ClemTODSystemInstanceGenerator(GameInstanceGenerator):
 
         promptsdict = {}
         for file_name, match_key in prompt_file_names.items():
-            filedata = file_utils.load_template(
-                f"resources/initial_prompts/{LANGUAGE}/{file_name}", GAME_NAME
-            )
+            filedata = self.load_template(
+                f"resources/initial_prompts/{LANGUAGE}/{file_name}")
             promptsdict[match_key] = self.create_prompt(goal, filedata, None)
 
         if tsystem in ["monolithic_llm", "modular_llm"]:
             prompt_file_names = {
                 "initial_prompt_b": "prompt_b",
                 "turn_prompt_b": "turn_prompt_b",
+            }
+
+            for file_name, match_key in prompt_file_names.items():
+                filedata = self.load_template(
+                    f"resources/initial_prompts/{LANGUAGE}/{tsystem}/{file_name}")
+                promptsdict[match_key] = self.create_prompt(goal, filedata, None)
+
+        if tsystem in ["monolithic_llm", "modular_prog", "modular_llm"]:
+            prompt_file_names = {
                 "dbquery_prompt_b": "dbquery_prompt_b",
                 "validbooking_prompt_b": "validbooking_prompt_b",
             }
 
             for file_name, match_key in prompt_file_names.items():
-                filedata = file_utils.load_template(
-                    f"resources/initial_prompts/{LANGUAGE}/{tsystem}/{file_name}", GAME_NAME
-                )
-                promptsdict[match_key] = self.create_prompt(goal, filedata, None)
+                filedata = self.load_template(
+                    f"resources/initial_prompts/{LANGUAGE}/{tsystem}/{file_name}")
+                promptsdict[match_key] = self.create_prompt(goal, filedata, None)                
 
         if tsystem in ["modular_prog", "modular_llm"]:
             prompt_file_names = {
@@ -62,9 +68,8 @@ class ClemTODSystemInstanceGenerator(GameInstanceGenerator):
             }
 
             for file_name, match_key in prompt_file_names.items():
-                filedata = file_utils.load_template(
-                    f"resources/initial_prompts/{LANGUAGE}/{tsystem}/{file_name}", GAME_NAME
-                )
+                filedata = self.load_template(
+                    f"resources/initial_prompts/{LANGUAGE}/{tsystem}/{file_name}")
                 '''
                 if match_key in ["dbquery_formatter", "slot_extraction", "followup_generation"]:
                     db_schema = data["json_schema"]["schema"]["properties"]["details"]["oneOf"][1]["oneOf"]
@@ -88,9 +93,8 @@ class ClemTODSystemInstanceGenerator(GameInstanceGenerator):
                 }
 
                 for file_name, match_key in prompt_file_names.items():
-                    filedata = file_utils.load_template(
-                        f"resources/initial_prompts/{LANGUAGE}/{tsystem}/{file_name}", GAME_NAME
-                    )
+                    filedata = self.load_template(
+                        f"resources/initial_prompts/{LANGUAGE}/{tsystem}/{file_name}")
                     promptsdict[match_key] = filedata#self.create_prompt(goal, filedata, None)
         return promptsdict
 
@@ -100,12 +104,10 @@ class ClemTODSystemInstanceGenerator(GameInstanceGenerator):
         num_instances = 0
 
 
-        taskdialogs = file_utils.load_json(
-            f"resources/tasks/{LANGUAGE}/subset_taskdata_test.json", GAME_NAME
-        )
-        config = file_utils.load_json(
-            f"resources/config/{LANGUAGE}/taskconfig.json", GAME_NAME
-        )
+        taskdialogs = self.load_json(
+            f"resources/tasks/{LANGUAGE}/subset_taskdata_dev.json")
+        config = self.load_json(
+            f"resources/config/{LANGUAGE}/taskconfig.json")
 
         tot_instances = 0
         #game_ids = random.sample(range(len(taskdialogs)), N_INSTANCES)
@@ -128,7 +130,7 @@ class ClemTODSystemInstanceGenerator(GameInstanceGenerator):
                 instance = self.add_game_instance(experiment, game_id)
                 instance["data"] = dict(taskdialogs[game_id])
                 instance["data"]["filename"] = taskdialogs[game_id]["filename"]
-                instance["data"]["db_path"] = f"games/{GAME_NAME}/resources/data/{LANGUAGE}/multiwoz"#"games/todsystem/dialogue_systems/data/multiwoz"
+                instance["data"]["db_path"] = f"clemtod/resources/data/{LANGUAGE}/multiwoz"#"games/todsystem/dialogue_systems/data/multiwoz"
                 instance["data"]["tsystem"] = tsystem
                 instance["data"]["tasktype"] = taskdialogs[game_id]["tasktype"]
                 instance["data"]["statusmsg"] = config["statusmsg"]
@@ -136,15 +138,16 @@ class ClemTODSystemInstanceGenerator(GameInstanceGenerator):
                 instance["data"]["liberal_processing"] = config["liberal_processing"]
                 instance["data"]["booking_mandatory_keys"] = config["booking_mandatory_keys"]
 
+                domain_schema = self.load_json(f"resources/data/{LANGUAGE}/multiwoz/schema.json")
                 instanceutils = MultiWozDataInstance(LANGUAGE, GAME_NAME, taskdialogs, game_id, config, tsystem)
-                instanceutils.fill_mwoz_details(instance["data"])
+                instanceutils.fill_mwoz_details(instance["data"], domain_schema)
 
                 promptsdict = self._prepare_prompts(taskdialogs[game_id]["message"], tsystem, instance["data"])
                 instance["data"]["prompts"] = promptsdict
 
 
                 num_instances += 1
-                if num_instances == 5:
+                if num_instances == 2:
                     break
  
             tot_instances += num_instances

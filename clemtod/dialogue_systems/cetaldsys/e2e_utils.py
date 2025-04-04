@@ -7,7 +7,7 @@ import pandas as pd
 from tqdm import tqdm
 from pathlib import Path
 from pprint import pprint
-from games.clemtod.dialogue_systems.cetaldsys.DST.dst import VALUES_FIX
+from dialogue_systems.cetaldsys.DST.dst import VALUES_FIX
 from langchain import PromptTemplate
 from langchain.llms.base import LLM
 from langchain.pydantic_v1 import BaseModel, Field, ConfigDict

@@ -2,9 +2,9 @@ import ast
 import json
 import pandas as pd
 
-from games.clemtod.dialogue_systems.cetaldsys.config import CONFIG
-from games.clemtod.dialogue_systems.cetaldsys.DST.dst_utils import MWOZ_Dataset
-from games.clemtod.dialogue_systems.cetaldsys.DST.evaluate_utils import unpack_belief_states, compute_prf
+from dialogue_systems.cetaldsys.config import CONFIG
+from dialogue_systems.cetaldsys.DST.dst_utils import MWOZ_Dataset
+from dialogue_systems.cetaldsys.DST.evaluate_utils import unpack_belief_states, compute_prf
 
 
 def evaluate_dst(results_df, vocal=True, save_path=None):

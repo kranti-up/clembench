@@ -20,10 +20,10 @@ import json
 
 import logging
 
-from games.clemtod.dialogue_systems.xuetaldsys.booking import book_hotel, book_restaurant, book_taxi, book_train, book_slots
-from games.clemtod.dialogue_systems.xuetaldsys.client import MyOpenAI
-from games.clemtod.dialogue_systems.xuetaldsys.prompts import AGENT_TEMPLATE, DB_TEMPLATE_DICT
-from games.clemtod.dialogue_systems.xuetaldsys.utils import (AGENT_COLOR, DB_PATH, HEADER_COLOR, HEADER_WIDTH,
+from dialogue_systems.xuetaldsys.booking import book_hotel, book_restaurant, book_taxi, book_train, book_slots
+from dialogue_systems.xuetaldsys.client import MyOpenAI
+from dialogue_systems.xuetaldsys.prompts import AGENT_TEMPLATE, DB_TEMPLATE_DICT
+from dialogue_systems.xuetaldsys.utils import (AGENT_COLOR, DB_PATH, HEADER_COLOR, HEADER_WIDTH,
                    OPENAI_API_KEY, RESET_COLOR, USER_COLOR, tenacity_retry_log)
 
 INTERMEDIATE_STEPS_KEY = "intermediate_steps"

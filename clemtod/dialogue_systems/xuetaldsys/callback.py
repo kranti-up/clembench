@@ -1,4 +1,4 @@
-from games.clemtod.dialogue_systems.xuetaldsys.utils import calc_openai_cost
+from dialogue_systems.xuetaldsys.utils import calc_openai_cost
 
 
 class BaseCallback:

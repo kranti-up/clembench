@@ -10,8 +10,8 @@ from langchain.prompts import PromptTemplate
 import openai
 import tenacity
 
-from games.clemtod.dialogue_systems.xuetaldsys.client import MyOpenAI
-from games.clemtod.dialogue_systems.xuetaldsys.utils import OPENAI_API_KEY, prepare_goals_string, tenacity_retry_log
+from dialogue_systems.xuetaldsys.client import MyOpenAI
+from dialogue_systems.xuetaldsys.utils import OPENAI_API_KEY, prepare_goals_string, tenacity_retry_log
 
 
 TEMPLATE = '''You are a dialogue simulator where you act as a user to talk to an AI assistant to complete some tasks.

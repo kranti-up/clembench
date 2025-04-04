@@ -2,12 +2,14 @@ import copy
 from typing import Dict, Any, List, Tuple
 import json
 
-import clemgame
-from clemgame import get_logger
-from games.clemtod.dialogue_systems.modprogdsys.players import ModProgLLMSpeaker
-from games.clemtod.utils import cleanupanswer
+#import clemgame
+#from clemcore import get_logger
+from dialogue_systems.modprogdsys.players import ModProgLLMSpeaker
+from utils import cleanupanswer
 
-logger = get_logger(__name__)
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class DBQueryFormatter:

@@ -2,9 +2,11 @@ import json
 
 from pydantic import BaseModel, Field
 from typing import Optional, Literal, Union
-from clemgame import get_logger
+#from clemgame import get_logger
 
-logger = get_logger(__name__)
+import logging
+
+logger = logging.getLogger(__name__)
 
 class RestaurantDB(BaseModel):
     """Represents valid restaurant search slots."""
@@ -111,8 +113,7 @@ class ProcessFuncCallResp:
         pass
 
 
-    def run(self, response):
-        logger.info(f"Answer from the model: {response}, {type(response)}")
+    def _sanity_checks(self, response, dsystem):
         if isinstance(response, str):
             try:
                 response = json.loads(response)
@@ -124,43 +125,138 @@ class ProcessFuncCallResp:
             logger.error(f"Invalid response type: {type(response)}, expected: dict")
             return None, f"Invalid response type: {type(response)}, expected: dict"
 
-        if "status" not in response or "details" not in response:
-            logger.error(f"Missing status/details in response")
-            return None, "Missing status/details in response"
+        if dsystem == "monolithic_llm":
+            if "name" not in response:
+                logger.error(f"Missing function name in response")
+                return None, "Missing function name in response"
+
+            if not ("arguments" in response or "parameters" in response):
+                logger.error(f"Missing function arguments in response")
+                return None, "Missing function arguments in response"
+
+            return response, None
+
+        elif dsystem in ["modular_prog", "modular_llm"]:
+            if "status" not in response or "details" not in response:
+                logger.error(f"Missing status/details in response")
+                return None, "Missing status/details in response"
+            
+            status = response["status"]
+            details = response["details"]
+
+            if not status or not details:
+                logger.error(f"No values for status/details in response")
+                return None, "No values for status/details in response"
+
+            return response, None
+
+
+    
+    def _get_function_details(self, response):
+        func_name = response["name"]
+        if func_name not in ["followup", "retrievefromrestuarantdb", "retrievefromhoteldb", "retrievefromtraindb",
+                             "validaterestuarantbooking", "validatehotelbooking", "validatetrainbooking"]:
+
+            return None, None, "Mistamcth in function name in response"
+
+        if "arguments" in response:
+            use_args_key = "arguments"
         
-        status = response["status"]
-        details = response["details"]
+        elif "parameters" in response:
+            use_args_key = "parameters"
 
-        if not status or not details:
-            logger.error(f"No values for status/details in response")
-            return None, "No values for status/details in response"
+        func_arguments = response[use_args_key]
+
+        if not isinstance(func_arguments, dict):
+            return None, None, f"Invalid func_arguments type: {type(func_arguments)}, expected: dict"
+
+        logger.info(f"Extracted function_name: {func_name}, arguments: {func_arguments}")
+        return func_name, func_arguments, None
+
+    
+    def _prepare_details(self, func_name, func_arguments):
+        status = None
+        details = {}
+        if func_name in ["retrievefromrestuarantdb", "validaterestuarantbooking"]:
+            details["domain"] = "restaurant"
+            details["restaurant"] = func_arguments
+        elif func_name in ["retrievefromhoteldb", "validatehotelbooking"]:
+            details["domain"] = "hotel"
+            details["hotel"] = func_arguments
+        elif func_name in ["retrievefromtraindb", "validatetrainbooking"]:
+            details["domain"] = "train"
+            details["train"] = func_arguments
+        else:
+            return None, None, f"Mistamcth in function name {func_name} in response. Cannot proceed."
+
+        if "db" in func_name:
+            status = "db-query"
+        elif "booking" in func_name:
+            status = "validate-booking"
+        else:
+            return None, None, f"Mistamcth in function name {func_name} in response. Cannot proceed."
+
+
+        logger.info(f"Prepared data status: {status}, details: {details}")
+        return status, details, None
+
+
+    def run(self, response, dsystem):
+        logger.info(f"Answer from the model: {response}, {type(response)}")
+
+        response, error = self._sanity_checks(response, dsystem)
+        if response is None:
+            return None, error, None
+
+        if dsystem == "monolithic_llm":
+            func_name, func_arguments, error = self._get_function_details(response)
+            if func_name is None:
+                return None, error, None
+
+
+            ret_func_data = {"name": func_name, "arguments": func_arguments}
+            if func_name == "followup":
+                if "message" not in func_arguments:
+                    return None, f"No followup message in response: {func_arguments}. Cannot proceed."
+                return json.dumps({"status": "follow-up", "details": func_arguments["message"]}), None, ret_func_data
         
-        if status == "follow-up":
-            if not isinstance(details, str):
-                logger.error(f"Invalid details type in response: {details}, {type(details)}. Expected str.")
-                return None, f"Invalid details type in response: {details}, {type(details)}. Expected str."
-            return json.dumps({"status": status, "details": details}), None
 
-        elif status not in ["db-query", "validate-booking"]:
-            logger.error(f"Invalid status in response: {status}")
-            return None, f"Invalid status in response: {status}"
-        
-        if not isinstance(details, dict):
-            logger.error(f"Invalid details type in response: {details}, {type(details)}. Expected dict.")
-            return None, f"Invalid details type in response: {details}, {type(details)}. Expected dict."
+            status, details, error = self._prepare_details(func_name, func_arguments)
+
+            if status is None:
+                return None, error, None
+        else:
+            ret_func_data = None
+
+            status = response["status"]
+            details = response["details"]
 
 
-        #details should have a key: domain
-        if "domain" not in details:
-            logger.error(f"Missing domain in details {response}")
-            return None, "Missing domain in details"
+            if status == "follow-up":
+                if not isinstance(details, str):
+                    logger.error(f"Invalid details type in response: {details}, {type(details)}. Expected str.")
+                    return None, f"Invalid details type in response: {details}, {type(details)}. Expected str."
+                return json.dumps({"status": status, "details": details}), None, None
+
+            elif status not in ["db-query", "validate-booking"]:
+                logger.error(f"Invalid status in response: {status}")
+                return None, f"Invalid status in response: {status}", None
+            
+            if not isinstance(details, dict):
+                logger.error(f"Invalid details type in response: {details}, {type(details)}. Expected dict.")
+                return None, f"Invalid details type in response: {details}, {type(details)}. Expected dict.", None
+
+
+            #details should have a key: domain
+            if "domain" not in details:
+                logger.error(f"Missing domain in details {response}")
+                return None, "Missing domain in details", None         
 
         domain = details["domain"]
 
         if domain not in ["restaurant", "hotel", "attraction", "train", "taxi"]:
             logger.error(f"Invalid domain: {domain}")
-            return None, f"Invalid domain: {domain}"
-        
+            return None, f"Invalid domain: {domain}", None
 
         #details should have a key: domain: which is restaurant/hotel/attraction/train/taxi this is different from the literal domain key
         if domain not in details:
@@ -215,14 +311,14 @@ class ProcessFuncCallResp:
                 result.update(valid_fields)
                 logger.info(f"Valid fields: {valid_fields}")
             else:
-                return None, f"Model class not found for domain: {domain} and class: {qd_class}"
+                return None, f"Model class not found for domain: {domain} and class: {qd_class}", None
 
         if not result:
             logger.error(f"No relevant fields are fetched from the model response: {result}")
-            return None, "No relevant fields are fetched from the model response"
+            return None, "No relevant fields are fetched from the model response", None
 
         result["domain"] = domain
-        return json.dumps({"status": status, "details": result}), None
+        return json.dumps({"status": status, "details": result}), None, ret_func_data
     
 
 if __name__ == "__main__":

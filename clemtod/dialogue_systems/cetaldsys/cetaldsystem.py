@@ -3,13 +3,13 @@ import json
 
 import logging
 
-from games.clemtod.dialogue_systems.basedsystem import DialogueSystem
-from games.clemtod.dialogue_systems.cetaldsys.players import CetalSpeaker
-from games.clemtod.dialogue_systems.cetaldsys.e2e_utils import E2E_InstrucTOD
-from games.clemtod.dialogue_systems.cetaldsys.config import CONFIG
-from games.clemtod.dialogue_systems.cetaldsys.modelargs import ModelArguments
-from games.clemtod.dialogue_systems.cetaldsys.dataargs import DataArguments
-from games.clemtod.dialogue_systems.cetaldsys.mwozdata import MWOZ_Dataset
+from dialogue_systems.basedsystem import DialogueSystem
+from dialogue_systems.cetaldsys.players import CetalSpeaker
+from dialogue_systems.cetaldsys.e2e_utils import E2E_InstrucTOD
+from dialogue_systems.cetaldsys.config import CONFIG
+from dialogue_systems.cetaldsys.modelargs import ModelArguments
+from dialogue_systems.cetaldsys.dataargs import DataArguments
+from dialogue_systems.cetaldsys.mwozdata import MWOZ_Dataset
 
 logger = logging.getLogger(__name__)
 

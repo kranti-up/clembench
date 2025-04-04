@@ -3,17 +3,19 @@ import copy
 from typing import Dict
 import json
 
-from clemgame import get_logger
-from games.clemtod.utils import cleanupanswer
-from games.clemtod.dialogue_systems.modllmdsys.players import ModLLMSpeaker
-from games.clemtod.dialogue_systems.modprogdsys.intentdetector import IntentDetector
-from games.clemtod.dialogue_systems.modprogdsys.slotextractor import SlotExtractor
-from games.clemtod.dialogue_systems.modprogdsys.followupgenerator import FollowupGenerator
-from games.clemtod.dialogue_systems.modprogdsys.dbqueryformatter import DBQueryFormatter
-from games.clemtod.dialogue_systems.modprogdsys.bookingformatter import BookingFormatter
-from games.clemtod.processfunccallresp import ProcessFuncCallResp
+#from clemgame import get_logger
+from utils import cleanupanswer
+from dialogue_systems.modllmdsys.players import ModLLMSpeaker
+from dialogue_systems.modprogdsys.intentdetector import IntentDetector
+from dialogue_systems.modprogdsys.slotextractor import SlotExtractor
+from dialogue_systems.modprogdsys.followupgenerator import FollowupGenerator
+from dialogue_systems.modprogdsys.dbqueryformatter import DBQueryFormatter
+from dialogue_systems.modprogdsys.bookingformatter import BookingFormatter
+from processfunccallresp import ProcessFuncCallResp
 
-logger = get_logger(__name__)
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ModLLMDM:
@@ -129,6 +131,7 @@ class ModLLMDM:
                     return taskinput
                 else:
                     return None
+
             elif sub_system == "followup_generator":
                 if "followup_generation" in taskinput:
                     return taskinput
@@ -145,6 +148,12 @@ class ModLLMDM:
                 else:
                     return None
             return taskinput
+
+    def _validate_subsystem_output(self, sub_system, sub_sys_response):
+        if sub_sys_response is None or isinstance(taskinput, json.decoder.JSONDecodeError) or "Cannot proceed." in sub_sys_response:
+            return None
+
+        return sub_sys_response     
         
 
     def run(self, utterance, current_turn: int) -> str:
@@ -162,7 +171,7 @@ class ModLLMDM:
                     "slot_extractor": self.slotext.run,
                     "followup_generator": self.followupgen.run,
                     "dbquery_formatter": self.dbqueryformatter.run,
-                    "booking_formatter": self.bookformatter.run
+                    "booking_formatter": self.bookingformatter.run
                 }
 
         self.promptlogs = []
@@ -229,12 +238,22 @@ class ModLLMDM:
                                                                     'answer': f"Sub-system({use_subsystem}) response: {ss_answer}"}})                
                 logger.info(f"{use_subsystem} response appending to Player B\n{ss_answer}")
                 self._append_utterance(use_subsystem, ss_answer, "user")
+
+                #Validate Sub-System Response
+                sub_sys_response = self._validate_subsystem_output(use_subsystem, ss_answer)
+
+                if sub_sys_response is None:
+                    errormsg = f"Invalid Subsystem({use_subsystem}) Output {ss_answer}. Cannot continue processing."
+                    logger.error(errormsg)
+                    #Game Master should treat this as failure and abort the game
+                    return self.promptlogs, None, errormsg
+
                 #Adding sleep to reduce the frequencey of calls to the LLM
-                time.sleep(0.5)                   
+                time.sleep(0.5)
             else:
                 # Return the LLM response to user
                 logger.info(f"Returning the LLM response to the user\n{result}")
-                llm_response, error = self.processresp.run(result)
+                llm_response, error, _ = self.processresp.run(result, "modular_llm")
                 if error:
                     self.promptlogs.append({"role": "assistant", "content": f"error while parsing the data: {error}"})
 

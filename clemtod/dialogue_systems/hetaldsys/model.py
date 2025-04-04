@@ -12,7 +12,7 @@ hf_api_key = os.environ.get('HF_API_KEY', None)
 
 logger = logging.getLogger(__name__)
 
-from games.clemtod.dialogue_systems.hetaldsys.prompts import FewShotPrompt, SimpleTemplatePrompt
+from dialogue_systems.hetaldsys.prompts import FewShotPrompt, SimpleTemplatePrompt
 
 class SimplePromptedLLM:
     def __init__(self, model, tokenizer, type='seq2seq'):

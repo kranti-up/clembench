@@ -2,10 +2,10 @@ import pandas as pd
 from tqdm import tqdm
 from langchain import PromptTemplate
 
-from games.clemtod.dialogue_systems.cetaldsys.DST.dst import SLOTS_REVERSE_REMAPPING
-from games.clemtod.dialogue_systems.cetaldsys.config import CONFIG
-from games.clemtod.dialogue_systems.cetaldsys.DST.dst_utils import MWOZ_Dataset
-from games.clemtod.dialogue_systems.cetaldsys.DST.evaluate_utils import unpack_belief_states
+from dialogue_systems.cetaldsys.DST.dst import SLOTS_REVERSE_REMAPPING
+from dialogue_systems.cetaldsys.config import CONFIG
+from dialogue_systems.cetaldsys.DST.dst_utils import MWOZ_Dataset
+from dialogue_systems.cetaldsys.DST.evaluate_utils import unpack_belief_states
 
 import openai
 

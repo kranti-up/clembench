@@ -2,10 +2,12 @@ import copy
 import json
 from fuzzywuzzy import process
 
-import clemgame
-from games.clemtod.dbretriever import DBRetriever
+#import clemgame
+from dbretriever import DBRetriever
 
-logger = clemgame.get_logger(__name__)
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class SchemaManager:
@@ -76,7 +78,7 @@ class DBQueryBuilder:
         for k, v in slotsdict.items():
             if k == "domain":
                 continue
-            if isinstance(v, str) or isinstance(v, int):
+            if (isinstance(v, str) and k not in ["stars", "arriveby", "leaveat"]) or isinstance(v, int):
                 dwhere[k.lower()] = str(v).lower()
             else:
                 #TODO: Do we need to convert value to str? Does it work for all cases?
@@ -96,18 +98,32 @@ class DBQueryBuilder:
         for key, value in dwhere.items():
             if value is None or value == "" or value == [] or value == {} or value == "donotcare":
                 continue
-            if isinstance(value, dict) and 'operator' in value and 'value' in value:
-                if value['operator'] not in ['=', '>', '<', '>=', '<=']:
-                    logger.error(f"Invalid operator for the key:{key}, value = {value}")
+
+            value_processed = value
+            if key in ["stars", "arriveby", "leaveat"] and isinstance(value, str):
+                try:
+                    value_processed = json.loads(value)
+                except Exception as error:
+                    #Not always the model response is containing operator, value
+                    #'arriveby': '12:07', 'leaveat': '11:50' -> There would be two reasons for this
+                    #Booking scenario in: Validation, (Which is a correct scenario), 
+                    #DBQuery scenario: Which means not following the response format
+                    #I suppose this should be treated correctly
+                    value_processed = value
+                    #return {"status": "failure", "data": None, "error": f"Failure in DB Parsing: {error}", "status_response": None}
+
+            if isinstance(value_processed, dict) and 'operator' in value_processed and 'value' in value_processed:
+                if value_processed['operator'] not in ['=', '>', '<', '>=', '<=']:
+                    logger.error(f"Invalid operator for the key:{key}, value = {value_processed}")
                     return {"status": "failure", "data": None, "error": self.errormsgs["invalidoperator"], "status_response": None}
-                operator = value['operator']
-                actual_value = str(value['value']).lower()
+                operator = value_processed['operator']
+                actual_value = str(value_processed['value']).lower()
             else:
                 operator = "="  # Default operator
                 if key == "trainid":
-                    actual_value = str(value).upper()
+                    actual_value = str(value_processed).upper()
                 else:
-                    actual_value = str(value).lower()
+                    actual_value = str(value_processed).lower()
 
             where_clauses.append(f"{key} {operator} ?")
             values.append(actual_value)

@@ -1,10 +1,12 @@
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from clemgame import get_logger
+#from clemgame import get_logger
 
 
-logger = get_logger(__name__)
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ComputeMetrics:

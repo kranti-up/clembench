@@ -1,9 +1,11 @@
 import random
 import string
 import json
-from clemgame import get_logger
+#from clemgame import get_logger
 
-logger = get_logger(__name__)
+import logging
+
+logger = logging.getLogger(__name__)
 
 def cleanupanswer(prompt_answer: str) -> str:
     """Clean up the answer from the LLM DM."""

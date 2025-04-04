@@ -6,7 +6,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 import logging
 
-from games.clemtod.dialogue_systems.xuetaldsys.utils import DB_PATH, TableItem, clean_name
+from dialogue_systems.xuetaldsys.utils import DB_PATH, TableItem, clean_name
 
 # DB_PATH = 'multiwoz.db'
 

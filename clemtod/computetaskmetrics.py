@@ -2,7 +2,7 @@ import os
 import numpy as np
 import json
 
-from games.clemtod.utils import processgenslots
+from utils import processgenslots
 
 def _setto_lower(slots: dict) -> dict:
     return {

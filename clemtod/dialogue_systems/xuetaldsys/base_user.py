@@ -1,7 +1,7 @@
 import openai
 import tenacity
 
-from games.clemtod.dialogue_systems.xuetaldsys.utils import tenacity_retry_log
+from dialogue_systems.xuetaldsys.utils import tenacity_retry_log
 
 
 class BaseUser:

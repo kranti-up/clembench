@@ -4,7 +4,7 @@ import pandas as pd
 from tqdm import tqdm
 import logging
 
-from games.clemtod.dialogue_systems.cetaldsys.promptconstruct import PromptConstructor
+from dialogue_systems.cetaldsys.promptconstruct import PromptConstructor
 
 logger = logging.getLogger(__name__)
 

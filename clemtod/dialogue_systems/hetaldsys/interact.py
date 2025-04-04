@@ -17,7 +17,7 @@ import logging
 import transformers
 import random
 
-from games.clemtod.dialogue_systems.hetaldsys.model import (
+from dialogue_systems.hetaldsys.model import (
     FewShotPromptedLLM,
     SimplePromptedLLM,
     FewShotOpenAILLM,
@@ -27,13 +27,13 @@ from games.clemtod.dialogue_systems.hetaldsys.model import (
     FewShotAlpaca,
     ZeroShotAlpaca,
 )
-from games.clemtod.dialogue_systems.hetaldsys.loaders import load_mwoz, load_sgd
-from games.clemtod.dialogue_systems.hetaldsys.delex import (
+from dialogue_systems.hetaldsys.loaders import load_mwoz, load_sgd
+from dialogue_systems.hetaldsys.delex import (
     prepareSlotValuesIndependent,
     delexicalise,
     delexicaliseReferenceNumber,
 )
-from games.clemtod.dialogue_systems.hetaldsys.definitions import (
+from dialogue_systems.hetaldsys.definitions import (
     MW_FEW_SHOT_DOMAIN_DEFINITIONS,
     MW_ZERO_SHOT_DOMAIN_DEFINITIONS,
     SGD_FEW_SHOT_DOMAIN_DEFINITIONS,
@@ -42,8 +42,8 @@ from games.clemtod.dialogue_systems.hetaldsys.definitions import (
     sgd_domain_prompt,
 )
 
-from games.clemtod.dialogue_systems.hetaldsys.database import MultiWOZDatabase
-from games.clemtod.dialogue_systems.hetaldsys.utils import (
+from dialogue_systems.hetaldsys.database import MultiWOZDatabase
+from dialogue_systems.hetaldsys.utils import (
     parse_state,
     ExampleRetriever,
     ExampleFormatter,

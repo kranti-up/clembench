@@ -1,10 +1,10 @@
-from games.clemtod.dialogue_systems.basedsystem import DialogueSystem
-from games.clemtod.dialogue_systems.xuetaldsys.xuetaldsystem import XUETALDialogueSystem
-from games.clemtod.dialogue_systems.hetaldsys.hetaldsystem import HETALDialogueSystem
-from games.clemtod.dialogue_systems.cetaldsys.cetaldsystem import CETALDialogueSystem
-from games.clemtod.dialogue_systems.monolithicsys.monodsystem import MONODialogueSystem
-from games.clemtod.dialogue_systems.modprogdsys.modprogdsystem import MODULARPROGDialogueSystem
-from games.clemtod.dialogue_systems.modllmdsys.modllmdsystem import MODULARLLMDialogueSystem
+from dialogue_systems.basedsystem import DialogueSystem
+from dialogue_systems.xuetaldsys.xuetaldsystem import XUETALDialogueSystem
+from dialogue_systems.hetaldsys.hetaldsystem import HETALDialogueSystem
+from dialogue_systems.cetaldsys.cetaldsystem import CETALDialogueSystem
+from dialogue_systems.monolithicsys.monodsystem import MONODialogueSystem
+from dialogue_systems.modprogdsys.modprogdsystem import MODULARPROGDialogueSystem
+from dialogue_systems.modllmdsys.modllmdsystem import MODULARLLMDialogueSystem
 
 def get_dialogue_system(system_name: str, **kwargs) -> DialogueSystem:
     """Returns an instance of the specified dialogue system."""

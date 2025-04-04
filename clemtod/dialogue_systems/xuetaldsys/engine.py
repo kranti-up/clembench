@@ -6,10 +6,10 @@ from termcolor import cprint
 
 import logging
 
-from games.clemtod.dialogue_systems.xuetaldsys.agent import Agent
-from games.clemtod.dialogue_systems.xuetaldsys.func_agent import FuncAgent
-from games.clemtod.dialogue_systems.xuetaldsys.user import User
-from games.clemtod.dialogue_systems.xuetaldsys.utils import (AGENT_COLOR, DOMAINS, HEADER_COLOR, HEADER_WIDTH,
+from dialogue_systems.xuetaldsys.agent import Agent
+from dialogue_systems.xuetaldsys.func_agent import FuncAgent
+from dialogue_systems.xuetaldsys.user import User
+from dialogue_systems.xuetaldsys.utils import (AGENT_COLOR, DOMAINS, HEADER_COLOR, HEADER_WIDTH,
                    RESET_COLOR, USER_COLOR, calc_openai_cost)
 
 logger = logging.getLogger(__name__)

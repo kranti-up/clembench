@@ -4,16 +4,18 @@ import time
 import json
 
 
-from clemgame import get_logger
-from games.clemtod.utils import cleanupanswer
-from games.clemtod.dialogue_systems.modprogdsys.intentdetector import IntentDetector
-from games.clemtod.dialogue_systems.modprogdsys.slotextractor import SlotExtractor
-from games.clemtod.dialogue_systems.modprogdsys.followupgenerator import FollowupGenerator
-from games.clemtod.dialogue_systems.modprogdsys.dbqueryformatter import DBQueryFormatter
-from games.clemtod.dialogue_systems.modprogdsys.bookingformatter import BookingFormatter
-from games.clemtod.processfunccallresp import ProcessFuncCallResp
+#from clemgame import get_logger
+from utils import cleanupanswer
+from dialogue_systems.modprogdsys.intentdetector import IntentDetector
+from dialogue_systems.modprogdsys.slotextractor import SlotExtractor
+from dialogue_systems.modprogdsys.followupgenerator import FollowupGenerator
+from dialogue_systems.modprogdsys.dbqueryformatter import DBQueryFormatter
+from dialogue_systems.modprogdsys.bookingformatter import BookingFormatter
+from processfunccallresp import ProcessFuncCallResp
 
-logger = get_logger(__name__)
+import logging
+
+logger = logging.getLogger(__name__)
 
 class ModProgLLM:
     def __init__(self, model_name, model_spec, prompts_dict, player_dict, resp_json_schema, liberal_processing, booking_mandatory_keys):
@@ -83,36 +85,52 @@ class ModProgLLM:
     def _validate_subsystem_input(self, sub_system: str, taskinput: Dict) -> Dict:
         logger.info(f"Validating Subsystem Input: {sub_system}-> {taskinput} {type(taskinput)}")
         if taskinput is None or isinstance(taskinput, str) or isinstance(taskinput, json.decoder.JSONDecodeError):
-            return None
+            if taskinput is None:
+                errormsg = f"{sub_system} subsystem output is None. Cannot continue processing"
+            elif isinstance(taskinput, str):
+                errormsg = f"{sub_system} subsystem output is a string and not matching with the expected type: Dict. Cannot continue processing"
+            elif isinstance(taskinput, json.decoder.JSONDecodeError):
+                errormsg = f"Failure in JSON parsing of: {sub_system} subsystem output. Error ({taskinput}). Cannot continue processing"
+            return None, errormsg
         # elif all(isinstance(value, dict) for value in taskinput.values()):
         #    return {}
         else:
+            errormessage = "No key named $subsystem is not available in the response. Cannot continue processing"
             if sub_system == "intent_detector":
                 if "intent_detection" in taskinput and "domain" in taskinput:
-                    return taskinput
+                    return taskinput, None
                 else:
-                    return None
+                    return None, errormessage.replace("$subsystem", "intent_detection")
             elif sub_system == "slot_extractor":
                 if "slot_extraction" in taskinput:
-                    return taskinput
+                    if "domain" in taskinput["slot_extraction"]:
+                        if taskinput["slot_extraction"]["domain"] in taskinput["slot_extraction"]:
+                            if taskinput["slot_extraction"]["domain"]:
+                                return taskinput, None
+                            else:
+                                return None, errormessage.replace("$subsystem", "empty domain data inside slot_extraction")
+                        else:
+                            return None, errormessage.replace("$subsystem", f"{taskinput['slot_extraction']['domain']} inside slot_extraction")
+                    else:
+                        return None, errormessage.replace("$subsystem", "domain inside slot_extraction")
                 else:
-                    return None
+                    return None, errormessage.replace("$subsystem", "slot_extraction")
             elif sub_system == "followup_generator":
                 if "followup_generation" in taskinput:
-                    return taskinput
+                    return taskinput, None
                 else:
-                    return None
+                    return None, errormessage.replace("$subsystem", "followup_generation")
             elif sub_system == "dbquery_formatter":
                 if "dbquery_format" in taskinput:
-                    return taskinput
+                    return taskinput, None
                 else:
-                    return None
+                    return None, errormessage.replace("$subsystem", "dbquery_format")
             elif sub_system == "booking_formatter":
                 if "booking_query" in taskinput:
-                    return taskinput
+                    return taskinput, None
                 else:
-                    return None
-            return taskinput        
+                    return None, errormessage.replace("$subsystem", "booking_query")
+            return taskinput, None       
 
     def _getquery_type(self, utterance):
         if "USER REQUEST:" in utterance:
@@ -153,7 +171,7 @@ class ModProgLLM:
         # subsystem_handlers[sub_system].clear_history()
         logger.info(f"Subsystem Answer: {ss_answer}, {type(ss_answer)}")
         #self._append_utterance(sub_system, ss_answer, "user")
-        usetaskinput = self._validate_subsystem_input(sub_system, ss_answer)
+        usetaskinput, errormsg = self._validate_subsystem_input(sub_system, ss_answer)
 
         if usetaskinput is None:
             logger.error(
@@ -161,10 +179,10 @@ class ModProgLLM:
             )
             # Game Master should treat this as failure and abort the game
             # TODO: Having None for prompt, raw_answer and answer is not a good idea. Need to handle this properly
-            return None
+            return None, errormsg
         # Adding sleep to reduce the frequencey of calls to the LLM
         time.sleep(0.5)
-        return usetaskinput
+        return usetaskinput, None
 
     def _prepare_gm_response(self, status, details):
         '''
@@ -192,40 +210,51 @@ class ModProgLLM:
 
     def _isbookingdatapresent(self, slotdata):
         logger.info(f"Booking Keys: {self.booking_mandatory_keys}, SlotData: {slotdata}")
+
+        missing_keys = []
+
         if "domain" in slotdata and slotdata["domain"] in slotdata and slotdata[slotdata["domain"]] and slotdata["domain"] in self.booking_mandatory_keys:
-            if all(bkey in slotdata[slotdata["domain"]] for bkey in self.booking_mandatory_keys[slotdata["domain"]]):
-                return True
-        return False        
+            missing_keys = [bkey for bkey in self.booking_mandatory_keys[slotdata["domain"]] if bkey not in slotdata[slotdata["domain"]]]
+
+            #if all(bkey in slotdata[slotdata["domain"]] for bkey in self.booking_mandatory_keys[slotdata["domain"]]):
+            if not missing_keys:
+                logger.info(f"All mandatory keys are present in the booking data. Can proceed with the booking")
+                return True, None
+
+        logger.info(f"Missing keys in the booking data: {missing_keys}")
+        return False, missing_keys
 
     def _call_followup_for_missing_booking_data(self, user_request, taskinput, errormsg_base, current_turn, current_state):
 
         if current_state:
             self.current_state = current_state
 
+        '''
         taskinput = {"user request": user_request,
                      "extracted data": self.slotdata,}
+        '''
         if self.dhistory:
             taskinput["dialog_history"] = self.dhistory
 
-        followup_answer = self._call_subsystem(
+        followup_answer, follow_error = self._call_subsystem(
             "followup_generator", taskinput, current_turn
         )
         logger.info(f"followup_answer = {followup_answer}")
         if followup_answer is None:
-            errormsg = errormsg_base.replace("$subsystem", "followup_generator")
-            self.promptlogs.append({"role": "assistant", "content": errormsg})
-            return self.promptlogs, None, None
+            #errormsg = errormsg_base.replace("$subsystem", "followup_generator")
+            self.promptlogs.append({"role": "assistant", "content": follow_error})
+            return self.promptlogs, None, follow_error
 
         self.dhistory.append(
             {
-                "role": "assistant",
+                #"role": "assistant",
                 "intent": "follow-up",
                 "response": followup_answer["followup_generation"],
             }
         )
         # self.dhistory[-1].update({"assistant": followup_answer["followup_generation"]})
         ss_output = {"status": "follow-up", "details": followup_answer["followup_generation"]}
-        llm_response, error = self.processresp.run(ss_output)
+        llm_response, error, _ = self.processresp.run(ss_output, "modular_prog")
         if error:
             self.promptlogs.append({"role": "assistant", "content": str(error)})
             return self.promptlogs, None, error
@@ -234,11 +263,12 @@ class ModProgLLM:
     def _handle_booking(self, booking_slots):
         self.current_state = "validate-booking" 
         self.dhistory.append(
-            {"role": "assistant", "intent": "validate-booking",
-                "response": booking_slots}
+            { #"role": "assistant",
+              "intent": "validate-booking",
+              "response": booking_slots}
         )                       
         ss_output = {"status": "validate-booking", "details": booking_slots}
-        llm_response, error = self.processresp.run(ss_output)                
+        llm_response, error, _ = self.processresp.run(ss_output, "modular_prog")                
         # self.dhistory[-1].update({"assistant": "validate-booking"})
         if error:
             self.promptlogs.append({"role": "assistant", "content": str(error)})
@@ -246,6 +276,7 @@ class ModProgLLM:
         return self._prepare_gm_response("validate-booking", llm_response)
     
     def _call_booking_formatter(self, taskinput, current_turn):
+        '''
         bookingformatter_answer = self._call_subsystem(
             "booking_formatter", taskinput, current_turn
         )
@@ -256,7 +287,10 @@ class ModProgLLM:
             errormsg = "Failure in the booking formatting. Cannot continue processing."
             self.promptlogs.append({"role": "assistant", "content": errormsg})
             return self.promptlogs, None, errormsg
+        
         return self._handle_booking(bookingformatter_answer["booking_query"])
+        '''
+        return self._handle_booking(taskinput["extracted data"])
 
     def deep_merge_slots(self, d1, d2):
         """Recursively merges d2 into d1 without overwriting existing keys."""
@@ -280,7 +314,9 @@ class ModProgLLM:
         4. If there is no matching module, probe the LLM DM one more time (total: 2 times)
         5. Go to step 2 and repeat the above steps until the DM module is ready to respond to the user request or the number of probes reaches 5
         """
-        self.promptlogs = []        
+        self.promptlogs = []
+        taskinput = {}
+
         query_type, user_request = self._getquery_type(utterance)
         logger.info(
             f"Query Type: {query_type}, User Request: {user_request} Current Turn: {current_turn}"
@@ -295,36 +331,52 @@ class ModProgLLM:
 
         errormsg_base = "$subsystem subsystem output not matching with the expected response format. Cannot continue processing"
         while True:
-            taskinput = {"user_request": user_request}
+            #if query_type == "user-request":
+            taskinput = {"input": user_request}
+            #elif query_type == "db-retrieval":
+            #    taskinput = {"db-query-response": user_request}
+            #elif query_type == "booking-validation":
+            #    taskinput = {"booking-status": user_request}
+
             if self.dhistory:
                 taskinput["dialog_history"] = self.dhistory
-            intent_answer = self._call_subsystem(
+
+            if self.current_state == "booking-success":
+                taskinput = {
+                    "booking-status": "Success"
+                }
+                return self._call_followup_for_missing_booking_data(user_request, taskinput, errormsg_base, current_turn, None)    
+
+
+            intent_answer, intent_error = self._call_subsystem(
                 "intent_detector", taskinput, current_turn
             )
             logger.info(f"Intent Answer: {intent_answer} {type(intent_answer)}")
             if intent_answer is None:
-                errormsg = errormsg_base.replace("$subsystem", "intent_detector")
-                self.promptlogs.append({"role": "assistant", "content": errormsg})
-                return self.promptlogs, None, errormsg
+                #errormsg = errormsg_base.replace("$subsystem", "intent_detector")
+                self.promptlogs.append({"role": "assistant", "content": intent_error})
+                return self.promptlogs, None, intent_error
 
+            '''
             self.dhistory.append(
                 {
-                    "role": "user",
-                    "user_request": user_request,
+                    #"role": "user",
+                    "input": user_request,
                     "intent": intent_answer["intent_detection"],
                     "domain": intent_answer["domain"],
                 }
             )
+            '''
 
             if query_type == "user-request":
-                slot_answer = self._call_subsystem(
+                slot_answer, slot_error = self._call_subsystem(
                     "slot_extractor", taskinput, current_turn
                 )
                 logger.info(f"Slot Answer: {slot_answer}")
                 if slot_answer is None:
-                    errormsg = errormsg_base.replace("$subsystem", "slot_extractor")
-                    self.promptlogs.append({"role": "assistant", "content": errormsg})
-                    return self.promptlogs, None, errormsg
+                    #errormsg = errormsg_base.replace("$subsystem", "slot_extractor")
+                    self.promptlogs.append({"role": "assistant", "content": slot_error})
+                    return self.promptlogs, None, slot_error
 
                 if slot_answer["slot_extraction"]:
                     #self.slotdata.update(slot_answer["slot_extraction"])
@@ -333,17 +385,27 @@ class ModProgLLM:
             intent_detection = intent_answer["intent_detection"]
             if intent_detection == "booking-request":
                 # self.booking_data.update(slot_answer["slot_extraction"])
+                self.dhistory.append(
+                    {
+                        #"role": "user",
+                        "intent": intent_detection,
+                        "input": user_request,
+                    }
+                )
+
                 ext_slots = self.slotdata
                 logger.info(f"ext_slots: {ext_slots}")
 
-                if self._isbookingdatapresent(ext_slots):
+                book_status, book_keys_miss = self._isbookingdatapresent(ext_slots)
+
+                if book_status:
                     taskinput = {"extracted data": ext_slots}
                     return self._call_booking_formatter(taskinput, current_turn)
                 else:
                     taskinput = {
-                        "missing data for booking": user_request,
+                        "input": user_request,
                         "extracted data": self.slotdata,
-                        #"required data for booking": self.booking_keys,
+                        "missing data for booking": book_keys_miss,
                     }
                     return self._call_followup_for_missing_booking_data(user_request, taskinput, errormsg_base,
                                                                         current_turn, "validate-booking")
@@ -352,18 +414,30 @@ class ModProgLLM:
             elif intent_detection in ["booking-success", "booking-failure"]:
                 self.dhistory.append(
                     {
-                        "role": "user",
+                        #"role": "user",
                         "intent": intent_detection,
                         "response": user_request,
                     }
                 )
+
                 taskinput = {"booking_confirmation_status": user_request}
                 return self._call_followup_for_missing_booking_data(user_request, taskinput,
-                                                                    errormsg_base, current_turn, "intent_detection")
+                                                                    errormsg_base, current_turn, intent_detection)
 
 
             elif intent_detection == "dbretrieval-request":
+                self.dhistory.append(
+                    {
+                        #"role": "user",
+                        "input": user_request,
+                        "intent": intent_answer["intent_detection"],
+                        "domain": intent_answer["domain"],
+                        "extracted slots": self.slotdata,
+                    }
+                )
+
                 taskinput = {"extracted data": self.slotdata}
+                '''
                 dbqueryformatter_answer = self._call_subsystem(
                     "dbquery_formatter", taskinput, current_turn
                 )
@@ -378,11 +452,11 @@ class ModProgLLM:
                 self._updateslots(
                     self.slotdata, dbqueryformatter_answer["dbquery_format"]
                 )
-
+                '''
                 self.current_state = "db-query"
 
                 ss_output = {"status": "db-query", "details": self.slotdata}
-                llm_response, error = self.processresp.run(ss_output)
+                llm_response, error, _ = self.processresp.run(ss_output, "modular_prog")
                 # self.dhistory[-1].update({"assistant": "db-query"})
                 if error:
                     self.promptlogs.append({"role": "assistant", "content": str(error)})
@@ -393,19 +467,21 @@ class ModProgLLM:
                 # Success in fetching the DB response
                 # The answer could be a list of results or a single result
                 # Pass the results to follow-up generator to generate the follow-up
-                self.dhistory.append(
-                    {
-                        "role": "user",
-                        "intent": intent_detection,
-                        "response": "fetched data from DB", #Skipping adding DB results as they are available in taskinput
-                    }
-                )
 
                 taskinput = {
-                    "extracted data": self.slotdata,
+                    #"extracted data": self.slotdata,
                     #"required data for booking": self.booking_keys,
-                    "db_results": user_request,
+                    "input": "data is fetched from the database and the results are available in the dialogue history",
                 }
+
+                self.dhistory.append(
+                    {
+                        #"role": "assistant",
+                        "intent": intent_detection,
+                        "domain": intent_answer["domain"],
+                        "DB data": user_request,
+                    }
+                )
 
                 return self._call_followup_for_missing_booking_data(user_request, taskinput, errormsg_base, current_turn, None)
 
@@ -413,26 +489,33 @@ class ModProgLLM:
                 # Failure in fetching the DB response
                 self.dhistory.append(
                     {
-                        "role": "user",
+                        #"role": "user",
                         "intent": intent_detection,
+                        "domain": intent_answer["domain"],
                         "response": user_request,
                     }
                 )
 
-                taskinput = {"missing data for db retrieval": user_request}
+                taskinput = {"failure in db retrieval due to missing columns in the query": user_request}
                 return self._call_followup_for_missing_booking_data(user_request, taskinput, errormsg_base, current_turn, None)
 
             else:
-                isbookingready = self._isbookingdatapresent(self.slotdata)
+                self.dhistory.append(
+                    {
+                        #"role": "user",
+                        "input": user_request,
+                    }
+                )                
+                isbookingready, book_keys_miss = self._isbookingdatapresent(self.slotdata)
                 if isbookingready:
                     logger.info(f"Information ready for booking {self.slotdata}")
                     taskinput = {"extracted data": self.slotdata}
                     return self._call_booking_formatter(taskinput, current_turn)
 
                 taskinput = {
-                    "user request": user_request,
+                    "input": user_request,
                     "extracted data": self.slotdata,
-                    #"required data for booking": self.booking_keys,
+                    "missing data for booking": book_keys_miss,
                 }
                 return self._call_followup_for_missing_booking_data(user_request, taskinput, errormsg_base, current_turn, None)
 

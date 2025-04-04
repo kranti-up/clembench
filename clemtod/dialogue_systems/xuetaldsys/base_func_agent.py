@@ -3,7 +3,7 @@ import json
 import openai
 import tenacity
 
-from games.clemtod.dialogue_systems.xuetaldsys.utils import OPENAI_API_KEY, tenacity_retry_log
+from dialogue_systems.xuetaldsys.utils import OPENAI_API_KEY, tenacity_retry_log
 
 openai.api_key = OPENAI_API_KEY
 
