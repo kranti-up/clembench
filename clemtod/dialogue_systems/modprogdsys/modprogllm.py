@@ -206,7 +206,52 @@ class ModProgLLM:
     def _updateslots(self, curslots, dbformatslots):
         for slot in curslots:
             if slot in dbformatslots:
-                curslots[slot] = dbformatslots[slot] 
+                curslots[slot] = dbformatslots[slot]
+
+    def _add_descriptions(self, missing_keys, domain):
+        descriptions = {
+            "restaurant": {
+                "area": "The area/location/place of the restaurant.",
+                "pricerange": "The price budget for the restaurant.",
+                "food": "The cuisine of the restaurant you are looking for.",
+                "name": "The name of the restaurant.",
+                "people": "Number of people for the restaurant reservation.",
+                "day": "Day of the restaurant reservation.",
+                "time": "Time of the restaurant reservation.",
+                "phone": "Phone number of the restaurant.",
+                "postcode": "Postal code of the restaurant.",
+                "address": "Address of the restaurant.",
+            },
+            "hotel": {
+                "area": "The area/location/place of the hotel.",
+                "pricerange": "The price budget for the hotel.",
+                "type": "What is the type (hotel/guesthouse) of the hotel.",
+                "name": "The name of the hotel.",
+                "internet": "Indicates whether the hotel has internet/wifi or not.",
+                "parking": "Indicates whether the hotel has parking or not.",
+                "stars": "The star rating of the hotel.",
+                "people": "Number of people for the hotel booking.",
+                "day": "Day of the hotel booking.",
+                "stay": "Length of stay at the hotel.",
+                "phone": "Phone number of the hotel.",
+                "postcode": "Postal code of the hotel.",
+                "address": "Address of the hotel.",
+            },
+            "train": {
+                "destination": "Destination of the train.",
+                "departure": "Departure location of the train.",
+                "day": "Journey day of the train.",
+                "arriveby": "Arrival time of the train.",
+                "leaveat": "Leaving time for the train.",
+                "people": "Number of train tickets for the booking.",
+                "trainid": "ID of the train.",
+            },
+        }
+
+        if domain not in descriptions:
+            return missing_keys
+
+        return [{key: descriptions[domain].get(key, f"Missing field for {domain} booking")} for key in missing_keys]
 
     def _isbookingdatapresent(self, slotdata):
         logger.info(f"Booking Keys: {self.booking_mandatory_keys}, SlotData: {slotdata}")
@@ -220,6 +265,8 @@ class ModProgLLM:
             if not missing_keys:
                 logger.info(f"All mandatory keys are present in the booking data. Can proceed with the booking")
                 return True, None
+            else:
+                missing_keys = self._add_descriptions(missing_keys, slotdata["domain"])
 
         logger.info(f"Missing keys in the booking data: {missing_keys}")
         return False, missing_keys
