@@ -205,6 +205,65 @@ def cleanupanswer(prompt_answer: str) -> str:
         logger.error(f"Error in cleanupanswer: {error}")
         return error
     return prompt_answer
+
+def funcdatasanitycheck(model_response: dict) -> dict:
+    use_data = {}
+    if "name" not in model_response:
+        return None, f"Function name is missing in the model response. Cannot continue processing."
+
+    if "arguments" in model_response:
+        use_args_key = "arguments"
+
+    elif "parameters" in model_response:
+        use_args_key = "parameters"
+
+    else:
+        return None, f"Function arguments is missing in the model response. Cannot continue processing."
+
+    func_name = model_response["name"]
+    func_arguments = model_response[use_args_key]
+
+    return {"name": func_name, "arguments": func_arguments}, None
+
+
+def preparemodelresponse(func_name: str, func_arguments: dict) -> dict:
+
+    if func_name is None or func_arguments is None:
+        return None, f"Function data is missing in the model response. Cannot continue processing."
+
+    use_data = {}
+
+    if func_name in ["retrievefromrestaurantdb", "retrievefromhoteldb", "retrievefromtraindb"]:
+        use_data["status"] = "db-query"
+
+    elif func_name in ["validaterestaurantbooking", "validatehotelbooking", "validatetrainbooking"]:
+        use_data["status"] = "validate-booking"
+
+    elif func_name in ["followup"]:
+        use_data["status"] = "follow-up"
+
+    else:
+        return None, f"Function name not matching with db/booking/follow-up query. Cannot proceed."
+
+    use_data["details"] = {}
+    if func_name in ["retrievefromrestaurantdb", "validaterestaurantbooking"]:
+        use_data["details"]["domain"] = "restaurant"
+        use_data["details"]["restaurant"] = func_arguments
+
+    elif func_name in ["retrievefromhoteldb", "validatehotelbooking"]:
+        use_data["details"]["domain"] = "hotel"
+        use_data["details"]["hotel"] = func_arguments
+
+    elif func_name in ["retrievefromtraindb", "validatetrainbooking"]:
+        use_data["details"]["domain"] = "train"
+        use_data["details"]["train"] = func_arguments
+
+    elif func_name in ["followup"]:
+        if "message" not in func_arguments:
+            return None, f"Follow-up message is missing in the model response. Cannot proceed."
+        use_data["details"] = func_arguments["message"]
+
+    return use_data, None
   
 
 def generate_reference_number(length=6):

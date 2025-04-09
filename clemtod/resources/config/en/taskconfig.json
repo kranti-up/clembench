@@ -2,7 +2,7 @@
     "n_turns": 15,
     "todsystems": ["monolithic_llm"],
     "_todsystems": ["hetal", "xuetal", "cetal", "monolithic_llm", "modular_prog", "modular_llm"],
-    "data_split": "dev",
+    "data_split": "test",
     "dialogue_type": ["single"],
     "liberal_processing": true,
     "topics": ["restaurant", "hotel", "train"],
@@ -66,7 +66,7 @@
         {
             "type": "function",
             "function": {
-                "name": "retrievefromrestuarantdb",
+                "name": "retrievefromrestaurantdb",
                 "description": "Use this function to search the restaurant database and retrieve matching restaurants based on optional filters such as area, pricerange, food (cuisine), or restaurant name. This function is typically used to find available options before validating or making a reservation.",
                 "parameters": {
                     "type": "object",
@@ -199,8 +199,8 @@
         {
             "type": "function",
             "function": {
-                "name": "validaterestuarantbooking",
-                "description": "Use this function to check the availability of a restaurant based on user preferences such as area, food (cuisine), pricerange, name, people, day, and time before proceeding with a reservation. This function should be called to validate whether a booking can be made with the provided details.",
+                "name": "validaterestaurantbooking",
+                "description": "Use this function to check the availability of a restaurant based on user preferences such as area, food (cuisine), pricerange, name, people, day, and time before proceeding with a reservation. This function should be called to validate whether a booking can be made with the provided details. If the details are accurate, the response for this function contains a booking reference number.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -259,7 +259,7 @@
             "type": "function",
             "function": {
                 "name": "validatehotelbooking",
-                "description": "Use this function to check the availability of a hotel based on user preferences such as area, type (hotel/guesthouse), pricerange, name, internet, parking, stars, people, day and stay before proceeding with a reservation. This function should be called to validate whether a booking can be made with the provided details.",
+                "description": "Use this function to check the availability of a hotel based on user preferences such as area, type (hotel/guesthouse), pricerange, name, internet, parking, stars, people, day and stay before proceeding with a reservation. This function should be called to validate whether a booking can be made with the provided details. If the details are accurate, the response for this function contains a booking reference number.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -334,7 +334,7 @@
             "type": "function",
             "function": {
                 "name": "validatetrainbooking",
-                "description": "Use this function to check the availability of a train based on user preferences such as destination, departure, arriveby, leaveat, day, people, and trainid before proceeding with a reservation. This function should be called to validate whether a booking can be made with the provided details.",
+                "description": "Use this function to check the availability of a train based on user preferences such as destination, departure, arriveby, leaveat, day, people, and trainid before proceeding with a reservation. This function should be called to validate whether a booking can be made with the provided details. If the details are accurate, the response for this function contains a booking reference number.",
                 "parameters": {
                     "type": "object",
                     "properties": {
