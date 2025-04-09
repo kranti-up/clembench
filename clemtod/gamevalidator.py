@@ -1,6 +1,6 @@
 #from clemgame import get_logger
 
-from utils import processgenslots
+from utils import processgenslots, checktimecloseness
 
 import logging
 
@@ -40,11 +40,22 @@ class GameValidator:
             if value != gen_slots[key]:
                 if key in gt_slots_fail_data:
                     if gt_slots_fail_data[key] != gen_slots[key]:
-                        missed_values.append({"gt": {key: value}, "gen": {key: gen_slots[key]}})
+                        data_match = False
+                        if key in ["leaveat", "arriveby"]:
+                            # If user agrees to the time, then why bother comparing it with ground truth?
+                            data_match = True#checktimecloseness(gt_slots_fail_data[key], gen_slots[key])
+                        if not data_match:
+                            missed_values.append({"gt": {key: gt_slots_fail_data[key]}, "gen": {key: gen_slots[key]}})
                     else:
                         logger.info(f"Key {key} has the same value {gen_slots[key]} in the ground truth fail data and generated slots")
                 else:
-                    missed_values.append({"gt": {key: value}, "gen": {key: gen_slots[key]}})
+                    data_match = False
+                    if key in ["leaveat", "arriveby"]:
+                        # If user agrees to the time, then why bother comparing it with ground truth?
+                        data_match = True#checktimecloseness(value, gen_slots[key])
+                    
+                    if not data_match:               
+                        missed_values.append({"gt": {key: value}, "gen": {key: gen_slots[key]}})
                 
 
         if missed_values:

@@ -251,8 +251,8 @@ class DMSystemMaster(GameMaster):
         self.log_event(from_="GM", to="GM", action=action)
 
         # Log the prompt of the player to understand the flow
-        action = {"type": "player prompt", "content": self.dsystem.get_player_prompt()}
-        self.log_event(from_="GM", to="GM", action=action)
+        #action = {"type": "player prompt", "content": self.dsystem.get_player_prompt()}
+        #self.log_event(from_="GM", to="GM", action=action)
 
 
         # log a final message saying that the game did came to an end

@@ -2,7 +2,7 @@ import random
 import string
 import json
 #from clemgame import get_logger
-
+from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
@@ -270,6 +270,29 @@ def generate_reference_number(length=6):
     characters = string.ascii_uppercase + string.digits  # Uppercase letters and digits
     random_string = ''.join(random.choices(characters, k=length))
     return random_string
+
+def checktimecloseness(time1, time2):
+    #If the two time values are close to each other, with a gap of +- 60 minutes, return true, else false
+    #Time values are already in the format of HH:MM
+    #Convert the time values to datetime objects
+
+    if isinstance(time2, dict):
+        if "operator" in time2 and "value" in time2:
+            time2 = time2["value"]
+        else:
+            return False
+
+
+    time_format = "%H:%M"
+    time1 = datetime.strptime(time1, time_format)
+    time2 = datetime.strptime(time2, time_format)
+    #Calculate the difference between the two time values
+    time_diff = abs((time1 - time2).total_seconds() / 60)
+    #Check if the difference is less than or equal to 30 minutes
+    if time_diff <= 60:
+        return True
+
+    return False
 
 
 if __name__ == "__main__":

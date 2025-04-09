@@ -115,7 +115,7 @@ class ModLLMDM:
                 "type": "function",
                 "function": {
                     "name": "retrievefromrestaurantdb",
-                    "description": "Use this function to search the restaurant database and retrieve matching restaurants based on optional filters such as area, pricerange, food (cuisine), or restaurant name. This function is typically used to find available options before validating or making a reservation.",
+                    "description": "Use this function to query the restaurant database and retrieve restaurants that match optional filters such as area, pricerange, food (cuisine), or restaurant name. This function is typically used to find available restaurant options before validating or making a reservation. Returns up to 5 matching restaurants, or fewer if less than 5 matches are found.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -146,7 +146,7 @@ class ModLLMDM:
                 "type": "function",
                 "function": {
                     "name": "retrievefromhoteldb",
-                    "description": "Use this function to search the hotel database and retrieve matching hotels/guesthouses based on optional filters such as area, pricerange, type, hotel name, internet, parking, or stars. This function is typically used to find available options before validating or making a reservation.",
+                    "description": "Use this function to query the hotel database and retrieve hotels/guesthouses that match optional filters such as area, pricerange, type, hotel name, internet, parking, or stars. This function is typically used to find available hotel options before validating or making a reservation. Returns up to 5 matching hotels, or fewer if less than 5 matches are found.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -198,7 +198,7 @@ class ModLLMDM:
                 "type": "function",
                 "function": {
                     "name": "retrievefromtraindb",
-                    "description": "Use this function to search the train database and retrieve matching trains based on optional filters such as destination, departure, day, arriveby, or leaveat. This function is typically used to find available options before validating or making a reservation.",
+                    "description": "Use this function to query the train database and retrieve trains that match optional filters such as destination, departure, day, arriveby, or leaveat. This function is typically used to find available options before validating or making a reservation. Returns up to 5 matching trains, or fewer if less than 5 matches are found.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -248,7 +248,7 @@ class ModLLMDM:
                 "type": "function",
                 "function": {
                     "name": "validaterestaurantbooking",
-                    "description": "Use this function to check the availability of a restaurant based on user preferences such as area, food (cuisine), pricerange, name, people, day, and time before proceeding with a reservation. This function should be called to validate whether a booking can be made with the provided details. If the details are accurate, the response for this function contains a booking reference number.",
+                    "description": "Use this function to check the availability of a restaurant based on user preferences such as area, food (cuisine), pricerange, name, people, day, and time before proceeding with a reservation. This function should be called to validate whether a booking can be made with the provided details. If the details are accurate, it returns a booking reference number.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -307,7 +307,7 @@ class ModLLMDM:
                 "type": "function",
                 "function": {
                     "name": "validatehotelbooking",
-                    "description": "Use this function to check the availability of a hotel based on user preferences such as area, type (hotel/guesthouse), pricerange, name, internet, parking, stars, people, day and stay before proceeding with a reservation. This function should be called to validate whether a booking can be made with the provided details. If the details are accurate, the response for this function contains a booking reference number.",
+                    "description": "Use this function to check the availability of a hotel based on user preferences such as area, type (hotel/guesthouse), pricerange, name, internet, parking, stars, people, day and stay before proceeding with a reservation. This function should be called to validate whether a booking can be made with the provided details. If the details are accurate, tit returns a booking reference number.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -382,7 +382,7 @@ class ModLLMDM:
                 "type": "function",
                 "function": {
                     "name": "validatetrainbooking",
-                    "description": "Use this function to check the availability of a train based on user preferences such as destination, departure, arriveby, leaveat, day, people, and trainid before proceeding with a reservation. This function should be called to validate whether a booking can be made with the provided details. If the details are accurate, the response for this function contains a booking reference number.",
+                    "description": "Use this function to check the availability of a train based on user preferences such as destination, departure, arriveby, leaveat, day, people, and trainid before proceeding with a reservation. This function should be called to validate whether a booking can be made with the provided details. If the details are accurate, it returns a booking reference number.",
                     "parameters": {
                         "type": "object",
                         "properties": {
