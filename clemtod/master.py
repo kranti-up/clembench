@@ -64,7 +64,7 @@ class DMSystemMaster(GameMaster):
         self._setgamespecificsetup(data, game_id)
 
         # add initial prompts to each player's messages
-        self.initiate(self.prompt_player_a, None)
+        self.initiate(self.prompt_player_a, self.prompt_player_b)
 
         # always log the details of the players in this format (see logdoc)
         self.log_players(
@@ -120,6 +120,11 @@ class DMSystemMaster(GameMaster):
     def _save_prompts(self, tsystem, promptsdict):
         self.prompt_player_a = promptsdict["prompt_a"]
         self.turn_prompt_player_a = promptsdict["turn_prompt_a"]
+
+        if "prompt_b" in promptsdict:
+            self.prompt_player_b = promptsdict["prompt_a"]
+        else:
+            self.prompt_player_b = None
 
     def _setgamespecificsetup(self, data: Dict, game_id: int) -> None:
         # instantiate both players
@@ -274,8 +279,10 @@ class DMSystemMaster(GameMaster):
         # also log the messages as events for the transcriptions
         action = {"type": "send message", "content": prompt_player_a}
         self.log_event(from_="GM", to="Player 1", action=action)
-        # action = {'type': 'send message', 'content': prompt_player_b}
-        # self.log_event(from_='GM', to='Player 2', action=action)
+        
+        if self.tsystem in ["monolithic_llm", "modular_llm"]:
+            action = {'type': 'send message', 'content': prompt_player_b}
+            self.log_event(from_='GM', to='Player 2', action=action)
 
     def proceed(self) -> None:
         """Check if the game loop should continue (dmsystem specific)."""

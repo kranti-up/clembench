@@ -2,26 +2,14 @@ TASK:
 1. Review the previous state and new user input
 2. Update the conversation flow if necessary
 3. Identify missing or unclear information
-4. All responses must strictly adhere to the schema, ensuring all required fields are included.
-5. The output must be a valid JSON. Ensure that all brackets, braces, and quotes are properly closed. Do not omit any closing characters. Return only a complete, parsable JSON object.
 
-RESPONSE FORMAT:
-1. For proceeding with the booking:
-{
-   "status": "validate-booking",
-   "details": {FILLED SLOTS}
-}
-
-2. For follow-up/acknowledgement (The FOLLOW-UP MESSAGE must be a concise string.):
-{
-   "status": "follow-up",
-   "details": FOLLOW-UP MESSAGE
-}
-
-3. For querying the database:
-{
-   "status": "db-query",
-   "details": {FILLED SLOTS}
-}
+RESPONSE RULES:
+1. Use the most appropriate function call based on the user’s request and available data.
+2. If the user input is unclear, incomplete, or needs clarification, call the `followup` function to ask for more information.
+3. For interacting with sub-systems, call the `processnextsubsystem` function to route the flow to the appropriate next subsystem.
+4. If a booking action or data lookup is required, use the appropriate function from the tool schema.
+5. Every response MUST be a valid tool call (tool_call). Never respond with plain text.
+6. Only one function call is allowed per turn.
 
 DATABASE RETRIEVAL RESULTS:
+

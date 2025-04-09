@@ -26,17 +26,17 @@ class FollowupGenerator:
             {
                 "type": "function",
                 "function": {
-                    "name": "followup",
+                    "name": "followupresponse",
                     "description": "Use this function to respond to the user with follow-up messages. This includes asking for missing or unclear information, confirming details, sharing booking reference numbers, or continuing the dialogue based on the current conversation state.",
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "followup_generation": {
+                            "response_generation": {
                                 "type": "string",
                                 "description": "The response from the dialogue system to the user"
                             }
                         },
-                        "required": ["followup_generation"],
+                        "required": ["response_generation"],
                         "additionalProperties": False
                     }
                 }
@@ -73,8 +73,8 @@ class FollowupGenerator:
         if not isinstance(answer, dict):
             return f"Invalid response type. {type(answer)}. Expected dict"
 
-        if "name" not in answer or answer["name"] != "followup":
-            return f"function name ( followup ) is missing in the response {answer}. Cannot proceed."
+        if "name" not in answer or answer["name"] != "followupresponse":
+            return f"function name ( followupresponse ) is missing in the response {answer}. Cannot proceed."
 
         use_args_key = None
         if "arguments" in answer:
@@ -87,10 +87,10 @@ class FollowupGenerator:
             return f"function arguments is missing in the response {answer}. Cannot proceed."
 
         result = answer[use_args_key]
-        if "followup_generation" not in result:
-            return f"followup_generation is not available in the response {result}. Cannot proceed."        
+        if "response_generation" not in result:
+            return f"response_generation is not available in the response {result}. Cannot proceed."        
 
-        return result["followup_generation"]
+        return result["response_generation"]
 
 
     def get_history(self):
