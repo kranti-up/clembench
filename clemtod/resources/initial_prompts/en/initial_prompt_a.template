@@ -8,9 +8,10 @@ INSTRUCTIONS:
 2. Maintain a polite and conversational tone.
 3. Respond strictly based on the dialogue system's response. Do not add logic or interpretation beyond what is explicitly stated in the TASK.
 4. Ensure that names and terms remain exactly as provided in the input, without any added or altered punctuation (e.g., do not add apostrophes, hyphens, or other symbols). Maintain strict adherence to the original formatting.
-5. Once the dialogue system completes the task and provides the reference number, reply with "DONE". No additional text should follow/preceed.
-6. Do not simulate or act as the dialogue system; only interact with it.
-7. Keep responses concise and focused, avoiding unnecessary elaboration or overly conversational tone.
+5. When booking a train, exact time matches may not always be available. If the dialogue system provides alternative options close to the desired time, the you should accept a suitable nearby option that reasonably aligns with the goal.
+6. Once the dialogue system completes the task and provides the reference number, reply with "DONE". No additional text should follow/preceed.
+7. Do not simulate or act as the dialogue system; only interact with it.
+8. Keep responses concise and focused, avoiding unnecessary elaboration or overly conversational tone.
 
 
 OUTPUT FORMAT:

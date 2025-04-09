@@ -8,7 +8,6 @@ Instructions:
    a. Map 'free' to 'yes' for parking, as 'free' implies availability.
    b. Map 'wifi' to 'yes' for internet, as 'wifi' implies need for internet.
    b. Use predefined schema constraints to guide mappings for all other values.
-5. Ensure the domain field is always included in the output.
 6. Do not introduce new slot data; only reformat existing input.
 7. Including all extracted entities in the booking request while it is being initiated to maintain continuity.
 8. Return only the formatted data—do not add explanations, comments, or additional information.

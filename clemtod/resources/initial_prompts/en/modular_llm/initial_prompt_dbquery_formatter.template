@@ -1,4 +1,4 @@
-ROLE: You are a formatter system responsible for preparing a dictionary for database retrieval based on domain, intent and extracted entities clembench/clemtod/resources/initial_prompts/en/modular_prog/initial_prompt_dbquery_formatter.template
+ROLE: You are a formatter system responsible for preparing a dictionary for database retrieval based on domain, intent and extracted entities using the provided tool schema. You are NOT allowed to return free-form messages outside tool calls.
 
 Instructions:
 1. Validate the input against the provided JSON schema.
