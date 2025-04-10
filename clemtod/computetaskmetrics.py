@@ -178,26 +178,20 @@ def compute_scores(base_dir):
                 if not os.path.isdir(exp_path):
                     continue
 
-                num_episodes = 0
-                inform_ep_list = []
-                book_ep_list = []
-                attr_ep_list = []
-                game_abort_list = []
-                game_loss_list = []
-                inform_ep_count = 0
-                book_ep_count = 0
-                attr_ep_count = 0
-                game_abort_count = 0
-                game_loss_count = 0
+                num_episodes = {}
+                inform_ep_list = {}
+                book_ep_list = {}
+                attr_ep_list = {}
+                game_abort_list = {}
+                game_loss_list = {}
 
                 for episode in os.listdir(exp_path):
                     episode_path = os.path.join(exp_path, episode)
                     if not os.path.isdir(episode_path):
                         continue
 
-                    num_episodes += 1
                     for filename in os.listdir(episode_path):
-                        if not filename in ["interactions.json"]:
+                        if filename != "interactions.json":
                             continue
 
                         with open(os.path.join(episode_path, filename), "r") as f:
@@ -205,13 +199,13 @@ def compute_scores(base_dir):
 
                         _save_episode_dialogue(interaction_data["Evaluation"]["gendialogue"], episode_path)
 
-                        game_abort = interaction_data["Aborted"]
-                        game_loss = interaction_data["Lose"]
+                        game_abort = int(interaction_data["Aborted"])
+                        game_loss = int(interaction_data["Lose"])
 
                         game_evaldata = interaction_data["Evaluation"]
-
                         dialogue_type = game_evaldata["dialogue_type"]
                         domains = game_evaldata["domains"]
+                        domain_data = "_".join(domains)
                         tsystem = game_evaldata["tsystem"]
                         play_turns = game_evaldata["play_turns"]
                         n_turns = game_evaldata["n_turns"]
@@ -219,38 +213,26 @@ def compute_scores(base_dir):
                         gt_slots = game_evaldata["slots_gt"]
                         gen_slots = game_evaldata["slots_gen"]
 
+                        gen_slots_processed = (
+                            preparegenslots(gen_slots)
+                            if gen_slots and ("xu" in exp or "he" in exp)
+                            else processgenslots(gen_slots)
+                            if gen_slots
+                            else {}
+                        )
 
-                        if gen_slots:
-                            if "xu" in exp or "he" in exp:
-                                gen_slots_processed = preparegenslots(gen_slots)
-                            else:
-                                gen_slots_processed = processgenslots(gen_slots)
-                        else:
-                            gen_slots_processed = {}
+                        gen_slots_loss = game_evaldata.get("slots_gen_loss", {})
 
-                        if "slots_gen_loss" in game_evaldata:
-                            gen_slots_loss = game_evaldata["slots_gen_loss"]
-                        else:
-                            gen_slots_loss = {}
-
-                        data_to_save = {"play_turns": play_turns,
-                                        "n_turns": n_turns,
-                                        "dialogue_type": dialogue_type,
-                                        "domains": domains,
-                                        }
-                        
                         if game_abort or play_turns == n_turns or gen_slots_processed is None:
                             inform_episode = 0
                             book_episode = 0
                             attr_episode = 0
-                            if game_abort:
-                                game_abort = 1
-
+                            game_abort = 1 if game_abort else 0
                         else:
-                            game_abort = 0
                             infoslots_gt, bookslots_gt, attrslots_gt, infofailslots_gt, bookfailslots_gt = getslotvaluesbycategories(gt_slots)
                             infoslots_gen, bookslots_gen, attrslots_gen, *_ = getslotvaluesbycategories(gen_slots_processed)
 
+                            inform_episode, book_episode, attr_episode = 0, 0, 1
                             status, _ = _compare_slots(infoslots_gt, infofailslots_gt, infoslots_gen)
                             if status:
                                 inform_episode = 1
@@ -258,72 +240,60 @@ def compute_scores(base_dir):
                                     book_episode = 1
                                 else:
                                     status, _ = _compare_slots(bookslots_gt, bookfailslots_gt, bookslots_gen)
-                                    if status:
-                                        book_episode = 1
-                                    else:
-                                        book_episode = 0
-                                        game_loss = 1
+                                    book_episode = 1 if status else 0
+                                    game_loss = 0 if status else 1
                             else:
-                                inform_episode = 0
-                                book_episode = 0
                                 game_loss = 1
 
                             if attrslots_gt:
                                 status, _ = _compare_slots(attrslots_gt, attrslots_gen)
-                                if status:
-                                    attr_episode = 1
-                                else:
-                                    attr_episode = 0
-                            else:
-                                attr_episode = 1
+                                attr_episode = 1 if status else 0
 
+                        num_episodes.setdefault(domain_data, 0)
+                        num_episodes[domain_data] += 1
 
-                        inform_ep_list.append(inform_episode)
-                        book_ep_list.append(book_episode)
-                        attr_ep_list.append(attr_episode)
-                        game_abort_list.append(game_abort)
-                        game_loss_list.append(game_loss)
-                        game_abort_count = len([1 for val in game_abort_list if val == 1])
-                        game_loss_count = len([1 for val in game_loss_list if val == 1])
-                        inform_ep_count = len([1 for val in inform_ep_list if val == 1])
-                        book_ep_count = len([1 for val in book_ep_list if val == 1])
-                        attr_ep_count = len([1 for val in attr_ep_list if val == 1])
-
+                        for metric, val in zip(
+                            [inform_ep_list, book_ep_list, attr_ep_list, game_abort_list, game_loss_list],
+                            [inform_episode, book_episode, attr_episode, game_abort, game_loss],
+                        ):
+                            metric.setdefault(domain_data, []).append(val)
                         break
+
                 results[game][model][exp]["num_episodes"] = num_episodes
-                results[game][model][exp]["entity_ext"] = round(np.mean(inform_ep_list), 2) if inform_ep_list else 0
-                results[game][model][exp]["tasksuccess"] = round(np.mean(book_ep_list), 2) if book_ep_list else 0
-                results[game][model][exp]["attr"] = round(np.mean(attr_ep_list), 2) if attr_ep_list else 0
-                results[game][model][exp]["game_abort"] = round(np.mean(game_abort_list), 2) if game_abort_list else 0
-                results[game][model][exp]["game_loss"] = round(np.mean(game_loss_list), 2) if game_loss_list else 0
-                results[game][model][exp]["game_abort_count"] = game_abort_count
-                results[game][model][exp]["game_loss_count"] = game_loss_count
-                results[game][model][exp]["inform_ep_count"] = inform_ep_count
-                results[game][model][exp]["book_ep_count"] = book_ep_count
-                results[game][model][exp]["attr_ep_count"] = attr_ep_count
+                results[game][model][exp]["num_episodes"]["total"] = sum(num_episodes.values())
 
-            #Compute the overall entity and task success results for the model
-            results[game][model]["overall"] = {}
-            overall_entity = []
-            overall_tasksuccess = []
-            overall_attr = []
-            overall_game_abort = []
-            overall_game_loss = []
+                metrics = {
+                    "entity_ext": inform_ep_list,
+                    "task_success": book_ep_list,
+                    "attr": attr_ep_list,
+                    "game_abort": game_abort_list,
+                    "game_loss": game_loss_list,
+                }
 
+                counts = {
+                    "game_abort_count": game_abort_list,
+                    "game_loss_count": game_loss_list,
+                    "inform_ep_count": inform_ep_list,
+                    "book_ep_count": book_ep_list,
+                    "attr_ep_count": attr_ep_list,
+                }
 
-            for exp in results[game][model]:
-                if exp == "overall":
-                    continue
-                overall_entity.append(results[game][model][exp]["entity_ext"])
-                overall_tasksuccess.append(results[game][model][exp]["tasksuccess"])
-                overall_attr.append(results[game][model][exp]["attr"])
-                overall_game_abort.append(results[game][model][exp]["game_abort"])
-                overall_game_loss.append(results[game][model][exp]["game_loss"])
+                for metric_name, val_list in metrics.items():
+                    metrics[metric_name] = {
+                        domain: round(np.mean(values), 2) if values else 0
+                        for domain, values in val_list.items()
+                    }
+                    values = list(metrics[metric_name].values())
+                    metrics[metric_name]["average"] = round(sum(values) / len(values), 2) if values else 0
 
+                for count_name, val_list in counts.items():
+                    counts[count_name] = {
+                        domain: sum(1 for val in values if val == 1)
+                        for domain, values in val_list.items()
+                    }
+                    counts[count_name]["total"] = sum(counts[count_name].values())
 
-            for metric, value in zip(["entity_ext", "tasksuccess", "attr", "game_abort", "game_loss"], [overall_entity, overall_tasksuccess, overall_attr, overall_game_abort, overall_game_loss]):
-                sdata = {"num_systems": (len(results[game][model])-1), "values": round(np.mean(value), 2) if value else 0}
-                results[game][model]["overall"][metric] = sdata
+                results[game][model][exp] = {**results[game][model][exp], **metrics, **counts}
 
     with open(os.path.join(base_dir, "taskmetrics.json"), "w") as f:
         json.dump(results, f, indent=2)
@@ -332,9 +302,5 @@ def compute_scores(base_dir):
 
 
 compute_scores(
-    "/home/admin/Desktop/codebase/cocobots/todsystems/clembench/modprog_single_2/"
+    "/home/admin/Desktop/codebase/cocobots/todsystems/clembench/mono_single_2/"
 )
-
-
-
-
