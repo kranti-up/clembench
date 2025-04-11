@@ -157,7 +157,7 @@ def compute_scores(base_dir):
 
     for model in os.listdir(base_dir):
         #Check if model is a directory
-        if not os.path.isdir(os.path.join(base_dir, model)):
+        if model == "corpus_dialogues" or not os.path.isdir(os.path.join(base_dir, model)):
             continue
         #if "70B" not in model:
         #    continue
@@ -302,5 +302,5 @@ def compute_scores(base_dir):
 
 
 compute_scores(
-    "/home/admin/Desktop/codebase/cocobots/todsystems/clembench/mono_single_2/"
+    "/home/admin/Desktop/codebase/cocobots/todsystems/clembench/modllm_single_2/"
 )

@@ -14,11 +14,11 @@ from tqdm import tqdm
 import openai
 
 from computecost import API_PRICE, calc_openai_cost
+from dialogueeval_hf_wrapper import HFLocalWrapper
 
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', "your-api-key")
 OPENAI_ORGANIZATION = os.environ.get('OPENAI_ORGANIZATION', "your-org")
 LLAMA3_API_KEY = os.environ.get('LLAMA3_API_KEY', "your-api-key")
-
 
 def prepareprompt(file_dir_path, dialogue, user_goal):
     initial_prompt = file_utils.load_template(f"{file_dir_path}/resources/initial_prompts/en/dialogueeval", "todsystem")
@@ -140,32 +140,54 @@ def process_dialogue_scores(results_file):
 
 
 
-def getscore(prompt, logdata, model_name="gpt-4o-2024-08-06"):
+def getscore(hfwrapper, prompt, logdata, model_name="gpt-4o-2024-08-06"):
     if model_name == "gpt-4o-2024-08-06":
-            api_key = OPENAI_API_KEY
-            organization = OPENAI_ORGANIZATION
-            client = openai.OpenAI(api_key=api_key, organization=organization)
+        api_key = OPENAI_API_KEY
+        organization = OPENAI_ORGANIZATION
+        client = openai.OpenAI(api_key=api_key, organization=organization)
+
+        completion = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0,
+                max_tokens=100,
+            )
+
+
     elif model_name == "meta-llama/llama-3.3-70b-instruct":
-            api_key = LLAMA3_API_KEY
+        api_key = LLAMA3_API_KEY
+        if api_key != "your-api-key":
             client = openai.OpenAI(api_key=LLAMA3_API_KEY,
                                     base_url="https://openrouter.ai/api/v1")
 
-    completion = client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0,
-            max_tokens=100,
-        )
+            completion = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0,
+                    max_tokens=100,
+                )
 
-    tokens_data = {"prompt_tokens": completion.usage.prompt_tokens,
-                   "completion_tokens": completion.usage.completion_tokens,
-                   "prompt_tokens_details": {"cached_tokens": 0}}
-    
-    if "prompt_tokens_details" in completion.usage and completion.usage.prompt_tokens_details:
-        if "cached_tokens" in completion.usage.prompt_tokens_details:
-            tokens_data["prompt_tokens_details"]["cached_tokens"] = completion.usage.prompt_tokens_details.cached_tokens
+            tokens_data = {"prompt_tokens": completion.usage.prompt_tokens,
+                        "completion_tokens": completion.usage.completion_tokens,
+                        "prompt_tokens_details": {"cached_tokens": 0}}
+            
+            if "prompt_tokens_details" in completion.usage and completion.usage.prompt_tokens_details:
+                if "cached_tokens" in completion.usage.prompt_tokens_details:
+                    tokens_data["prompt_tokens_details"]["cached_tokens"] = completion.usage.prompt_tokens_details.cached_tokens
+
+        else:
+            completion = hfwrapper.generate_response(
+                temperature=0,
+                messages=[
+                        {"role": "user", "content": prompt}
+                    ],
+                tool_schema=None,
+                request_timeout=10,
+            )
 
     logdata["model"] = model_name
     logdata["prompt"] = prompt
@@ -173,8 +195,8 @@ def getscore(prompt, logdata, model_name="gpt-4o-2024-08-06"):
     logdata["response"] = completion.choices[0].message.content
 
 
-    logdata["cost"], logdata["tokens"] = calc_openai_cost(model_name, tokens_data)
-    logdata["cost"] = round(logdata["cost"], 2)
+    #logdata["cost"], logdata["tokens"] = calc_openai_cost(model_name, tokens_data)
+    logdata["cost"] = 0#round(logdata["cost"], 2)
 
 
 def getcorpusdialogue(dialogue):
@@ -185,7 +207,7 @@ def getcorpusdialogue(dialogue):
             role = "User"
         else:
             role = "System"
-        dialogue_processed += role + ":\n" + turn["utterance"] + "\n"
+        dialogue_processed += role + ":\n" + turn["utterance"].strip() + "\n"
         if role == "System":
             dialogue_processed += "\n"
     return dialogue_processed.strip(), len(dialogue)/2
@@ -194,21 +216,21 @@ def getdsystemgendialogue(dialogue_data):
     dsystem_dialogue = ""
     for turn in dialogue_data:
         if "user" in turn:
-            dsystem_dialogue += "USER:\n"+turn["user"] + "\n"
+            dsystem_dialogue += "User:\n"+turn["user"] + "\n"
         if "system" in turn:
             systext = turn["system"].replace("Response Generator:", "").strip()
             systext = systext.replace("Response Generator output:", "").strip()
             systext = systext.replace("Agent Follow-up:", "").strip()
-            dsystem_dialogue += "SYSTEM:\n"+systext + "\n\n"
+            dsystem_dialogue += "System:\n"+systext + "\n\n"
     dsystem_dialogue = dsystem_dialogue.strip()
 
     return dsystem_dialogue, len(dialogue_data)
 
 
-def computecorpusdialogue_score(base_dir, results, score_model_name):
+def computecorpusdialogue_score(hfwrapper, base_dir, results, score_model_name):
 
-    corpus_dir_path = os.path.join(base_dir, "corpus_dialogues")
-    os.makedirs(corpus_dir_path, exist_ok=True)
+    #corpus_dir_path = os.path.join(base_dir, "corpus_dialogues")
+    #os.makedirs(corpus_dir_path, exist_ok=True)
 
 
     #for model in os.listdir(base_dir):
@@ -221,6 +243,9 @@ def computecorpusdialogue_score(base_dir, results, score_model_name):
 
             for exp in os.listdir(game_path):
                 exp_path = os.path.join(game_path, exp)
+                if not os.path.isdir(exp_path):
+                    continue
+
                 for episode in os.listdir(exp_path):
                     if episode.endswith(".json"):
                         continue
@@ -236,9 +261,10 @@ def computecorpusdialogue_score(base_dir, results, score_model_name):
                         corpusdialogue = instance_data["data"]["corpususer"]
                         corpusdialogue, corpus_turns = getcorpusdialogue(corpusdialogue)
 
-                        corpsu_dialg_file_path = os.path.join(corpus_dir_path, episode)
-                        os.makedirs(corpsu_dialg_file_path, exist_ok=True)
-                        with open(os.path.join(corpsu_dialg_file_path, "corpus_dialogue.txt"), "w") as f:
+                        #corpsu_dialg_file_path = os.path.join(corpus_dir_path, episode)
+                        #os.makedirs(corpsu_dialg_file_path, exist_ok=True)
+                        #with open(os.path.join(corpsu_dialg_file_path, "corpus_dialogue.txt"), "w") as f:
+                        with open(os.path.join(episode_path, "gt_corpus_dialogue.txt"), "w") as f:
                             f.write(corpusdialogue)
 
                         file_dir_path = base_dir.split("/")[:-2]
@@ -248,22 +274,29 @@ def computecorpusdialogue_score(base_dir, results, score_model_name):
                         if "corpus-episode-dlgs" not in results[game]:
                             results[game]["corpus-episode-dlgs"] = {}
                         corpus_dlg_score = {}
-                        getscore(promptmessage_corpus, corpus_dlg_score, score_model_name)
-
+                        #getscore(hfwrapper, promptmessage_corpus, corpus_dlg_score, score_model_name)
+                        '''
                         scores = {}
                         parse_resp_score(corpus_dlg_score["response"], scores)
                         corpus_dlg_score.update({"corpus_turns": corpus_turns, "corpusdialogue": corpusdialogue,
                                                  "filename": instance_data["data"]["filename"],
                                                  "episode": episode,
                                                  "corpus-dlg-score": scores})
-                        results[game]["corpus-episode-dlgs"][episode] = corpus_dlg_score
-                break
-            break
-        break
+                        '''
+                        results[game]["corpus-episode-dlgs"][episode] = None#corpus_dlg_score
+                #break
+            #break
+        #break
 
 
 def compute_scores(base_dir, score_model_name):
     results = {}
+
+    if "meta-llama" in score_model_name or "Qwen" in score_model_name:
+        hfwrapper = None#HFLocalWrapper(model_id=score_model_name, max_new_tokens=500)
+    else:
+        hfwrapper = None
+
 
     #for model in os.listdir(base_dir):
     for model in tqdm(os.listdir(base_dir), desc="Scoring Generated Dialogues"):
@@ -282,7 +315,8 @@ def compute_scores(base_dir, score_model_name):
                 if exp not in results[game][model]:
                     results[game][model][exp] = {}
                 exp_path = os.path.join(game_path, exp)
-
+                if not os.path.isdir(exp_path):
+                    continue
                 num_episodes = 0
                 for episode in os.listdir(exp_path):
                     if episode.endswith(".json"):
@@ -309,7 +343,7 @@ def compute_scores(base_dir, score_model_name):
 
                     user_goal = interaction_data["Evaluation"]["goal"]
                     prompt_dialogue, gen_dlg_turns = getdsystemgendialogue(dialogue_data)
-                    with open(os.path.join(episode_path, "cleaned_dialogue.txt"), "w") as f:
+                    with open(os.path.join(episode_path, "gen_cleaned_dialogue.txt"), "w") as f:
                         f.write(prompt_dialogue)
 
                     file_dir_path = base_dir.split("/")[:-2]
@@ -329,9 +363,9 @@ def compute_scores(base_dir, score_model_name):
                         results[game][model][exp][episode]["filename"] = instance_data["data"]["filename"]
 
                     results[game][model][exp][episode]["gen-dlg-score"] = {}
-                    getscore(promptmessage_gen, results[game][model][exp][episode]["gen-dlg-score"], score_model_name)
+                    #getscore(hfwrapper, promptmessage_gen, results[game][model][exp][episode]["gen-dlg-score"], score_model_name)
 
-    computecorpusdialogue_score(base_dir, results, score_model_name)
+    computecorpusdialogue_score(hfwrapper, base_dir, results, score_model_name)
 
     if "meta-llama/llama-3.3-70b-instruct" in score_model_name:
         suffix = "llama"
@@ -349,4 +383,4 @@ base_dir = "/home/admin/Desktop/codebase/cocobots/todsystems/clembench/modprog_s
 #compute_scores(base_dir, "gpt-4o-2024-08-06")
 compute_scores(base_dir, "meta-llama/llama-3.3-70b-instruct")
 
-process_dialogue_scores(os.path.join(base_dir, "dialoguemetric_llama3.json"))
+#process_dialogue_scores(os.path.join(base_dir, "dialoguemetric_llama3.json"))
