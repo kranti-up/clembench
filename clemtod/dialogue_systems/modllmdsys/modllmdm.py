@@ -579,8 +579,15 @@ class ModLLMDM:
         self.cur_reprobe = 0
         self.promptlogs.append({"role": "user", "content": f"User Query: {utterance}"})
         #self._append_utterance(None, utterance, "user")
+        num_process_ssystem = 0
 
         while True:
+            if num_process_ssystem > 10:
+                errormsg = f"Too many times ({num_process_ssystem}) sub-systems processed. Cannot continue processing."
+                logger.error(errormsg)
+                #Game Master should treat this as failure and abort the game
+                self.promptlogs.append({"role": "assistant", "content": f"{errormsg}"})
+                return self.promptlogs, None, errormsg
             if self.ishfmodel():
                 tool_content = {"name": self.func_name, "content": utterance}
                 self._append_utterance(None, tool_content, "tool")
@@ -620,6 +627,7 @@ class ModLLMDM:
                         next_subsystem = self.func_arguments.get("next_subsystem", None)
                         taskinput = self.func_arguments.get("input_data", None)
                         taskcontext = self.func_arguments.get("dialogue_history", None)
+                        num_process_ssystem += 1
 
                     logger.info(f"next_subsystem: {next_subsystem}, taskinput: {taskinput}, taskcontext: {taskcontext}")
 
