@@ -70,6 +70,12 @@ class FollowupGenerator:
         return prompt, raw_response, raw_answer, parsed_answer
 
     def _parse_response(self, answer):
+        logger.info(f"Answer from the model: {answer}, {type(answer)}")        
+        if isinstance(answer, list):
+            #return f"Invalid response type. {type(answer)}. Expected dict"            
+            answer = answer[0]
+
+
         if not isinstance(answer, dict):
             return f"Invalid response type. {type(answer)}. Expected dict"
 

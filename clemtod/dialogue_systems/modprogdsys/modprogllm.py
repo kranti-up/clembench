@@ -388,12 +388,14 @@ class ModProgLLM:
             if self.dhistory:
                 taskinput["dialog_history"] = self.dhistory
 
+            #Commenting for testing multi-domain dialogues
+            '''
             if self.current_state == "booking-success":
                 taskinput = {
                     "booking-status": "Success"
                 }
                 return self._call_followup_for_missing_booking_data(user_request, taskinput, errormsg_base, current_turn, None)    
-
+            '''
 
             intent_answer, intent_error = self._call_subsystem(
                 "intent_detector", taskinput, current_turn
@@ -419,7 +421,7 @@ class ModProgLLM:
                 slot_answer, slot_error = self._call_subsystem(
                     "slot_extractor", taskinput, current_turn
                 )
-                logger.info(f"Slot Answer: {slot_answer}")
+                logger.info(f"Slot Answer: {slot_answer}, Current Slot Data: {self.slotdata}")
                 if slot_answer is None:
                     #errormsg = errormsg_base.replace("$subsystem", "slot_extractor")
                     self.promptlogs.append({"role": "assistant", "content": slot_error})
