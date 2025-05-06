@@ -6,8 +6,6 @@ import json
 from typing import List
 from collections import defaultdict
 
-#import clemgame
-#from clemcore.clemcore.backends import ModelSpec
 from clemcore.utils import file_utils
 from tqdm import tqdm
 
@@ -15,6 +13,11 @@ import openai
 
 from computecost import API_PRICE, calc_openai_cost
 from dialogueeval_hf_wrapper import HFLocalWrapper
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', "your-api-key")
 OPENAI_ORGANIZATION = os.environ.get('OPENAI_ORGANIZATION', "your-org")
@@ -42,16 +45,22 @@ def process_modelscore(model_details):
 
 
 def parse_resp_score(episode_response, scores_dict):
-    taskcompletion, nat_us, nat_ds, coh_us, coh_ds, diver_us = episode_response.split(",")
-    taskcompletion = 1 if taskcompletion.lower() == "yes" else 0
+    logger.info(f"Parsing response: {episode_response}")
+    try:
+        taskcompletion, nat_us, nat_ds, coh_us, coh_ds, diver_us = episode_response.split(",")
+        taskcompletion = 1 if taskcompletion.lower() == "yes" else 0
 
-    labels = ["nat_us", "nat_ds", "coh_us", "coh_ds", "diver_us", "taskcompletion"]
-    values = [int(nat_us), int(nat_ds), int(coh_us), int(coh_ds), int(diver_us), int(taskcompletion)]
+        labels = ["nat_us", "nat_ds", "coh_us", "coh_ds", "diver_us", "taskcompletion"]
+        values = [int(nat_us), int(nat_ds), int(coh_us), int(coh_ds), int(diver_us), int(taskcompletion)]
 
-    for key, val in zip(labels, values):
-        if key not in scores_dict:
-            scores_dict[key] = []
-        scores_dict[key].append(val)
+        for key, val in zip(labels, values):
+            if key not in scores_dict:
+                scores_dict[key] = []
+            scores_dict[key].append(val)
+    except Exception as error:
+        logger.error(f"Error: {error}")
+        print(f"Error: {error}")
+        input()
 
 def process_expscore(episode_details):
     scores = {}
@@ -134,13 +143,16 @@ def process_dialogue_scores(results_file):
     with open(results_file, "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
 
-    print("Scores computed and saved to dialoguemetrics.json")
+    print(f"Scores computed and saved to {results_file}")
 
 
 
 
 
 def getscore(hfwrapper, prompt, logdata, model_name="gpt-4o-2024-08-06"):
+
+    tokens_data = None
+
     if model_name == "gpt-4o-2024-08-06":
         api_key = OPENAI_API_KEY
         organization = OPENAI_ORGANIZATION
@@ -156,7 +168,7 @@ def getscore(hfwrapper, prompt, logdata, model_name="gpt-4o-2024-08-06"):
             )
 
 
-    elif model_name == "meta-llama/llama-3.3-70b-instruct":
+    elif model_name == "meta-llama/Llama-3.3-70B-Instruct":
         api_key = LLAMA3_API_KEY
         if api_key != "your-api-key":
             client = openai.OpenAI(api_key=LLAMA3_API_KEY,
@@ -274,34 +286,45 @@ def computecorpusdialogue_score(hfwrapper, base_dir, results, score_model_name):
                         if "corpus-episode-dlgs" not in results[game]:
                             results[game]["corpus-episode-dlgs"] = {}
                         corpus_dlg_score = {}
-                        #getscore(hfwrapper, promptmessage_corpus, corpus_dlg_score, score_model_name)
                         '''
+                        getscore(hfwrapper, promptmessage_corpus, corpus_dlg_score, score_model_name)
+
                         scores = {}
                         parse_resp_score(corpus_dlg_score["response"], scores)
                         corpus_dlg_score.update({"corpus_turns": corpus_turns, "corpusdialogue": corpusdialogue,
                                                  "filename": instance_data["data"]["filename"],
                                                  "episode": episode,
                                                  "corpus-dlg-score": scores})
+
+                        results[game]["corpus-episode-dlgs"][episode] = corpus_dlg_score
+                        logger.info(f"Scored {model}--{episode}")
                         '''
-                        results[game]["corpus-episode-dlgs"][episode] = None#corpus_dlg_score
+                        break
+                    #break
                 #break
             #break
-        #break
+        break
+    logger.info("Completed scoring of corpus dialogues")
 
 
 def compute_scores(base_dir, score_model_name):
     results = {}
 
     if "meta-llama" in score_model_name or "Qwen" in score_model_name:
-        hfwrapper = None#HFLocalWrapper(model_id=score_model_name, max_new_tokens=500)
+        hfwrapper = HFLocalWrapper(model_id=score_model_name, max_new_tokens=100)
     else:
         hfwrapper = None
 
+    print("Loaded the model")
+    input()
 
     #for model in os.listdir(base_dir):
     for model in tqdm(os.listdir(base_dir), desc="Scoring Generated Dialogues"):
         if not os.path.isdir(os.path.join(base_dir, model)):
             continue
+        #if model in ['gpt-4o-2024-08-06-t0.0--gpt-4o-2024-08-06-t0.0', 'Llama-3.3-70B-Instruct-t0.0--Llama-3.3-70B-Instruct-t0.0',
+        #                'Qwen2.5-32B-Instruct-t0.0--Qwen2.5-32B-Instruct-t0.0']:
+        #    continue
         model_path = os.path.join(base_dir, model)
         for game in os.listdir(model_path):
             if game not in results:
@@ -364,10 +387,16 @@ def compute_scores(base_dir, score_model_name):
 
                     results[game][model][exp][episode]["gen-dlg-score"] = {}
                     #getscore(hfwrapper, promptmessage_gen, results[game][model][exp][episode]["gen-dlg-score"], score_model_name)
+                    #logger.info(f"Scored {model}--{episode}")
+                    #break
+                #break
+            #break
+        #break
 
+    logger.info("Completed scoring of generated dialogues")
     computecorpusdialogue_score(hfwrapper, base_dir, results, score_model_name)
-
-    if "meta-llama/llama-3.3-70b-instruct" in score_model_name:
+    '''
+    if "meta-llama/Llama-3.3-70B-Instruct" in score_model_name:
         suffix = "llama"
     elif "gpt-4o-2024-08-06" in score_model_name:
         suffix = "gpt"
@@ -377,10 +406,12 @@ def compute_scores(base_dir, score_model_name):
     with open(os.path.join(base_dir, f"dialoguemetric_{suffix}.json"), "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
 
-    print(f"Scores computed and saved to dialoguemetric_{suffix}.json")
-
-base_dir = "/home/admin/Desktop/codebase/cocobots/todsystems/clembench/modprog_single_2/"
+    logger.info(f"Scores computed and saved to dialoguemetric_{suffix}.json")
+    '''
+base_dir = "/home/users/kranti/project/kranti/testtodsystem/monollm/clembench/cross_mono_multi_1/"
 #compute_scores(base_dir, "gpt-4o-2024-08-06")
-compute_scores(base_dir, "meta-llama/llama-3.3-70b-instruct")
+#compute_scores(base_dir, "meta-llama/Llama-3.3-70B-Instruct")
+compute_scores(base_dir, "Qwen/Qwen2.5-32B-Instruct")
 
-#process_dialogue_scores(os.path.join(base_dir, "dialoguemetric_llama3.json"))
+#process_dialogue_scores(os.path.join(base_dir, "dialoguemetric_llama.json"))
+#process_dialogue_scores(os.path.join(base_dir, "dialoguemetric_gpt_1.json"))

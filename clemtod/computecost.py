@@ -123,7 +123,11 @@ def compute_tokens_local_style(requests):
 
 
     for idx, interaction in enumerate(requests):
-        prompt = interaction.get('manipulated_prompt_obj', {}).get('inputs', '')
+        manip_prompt_obj = interaction["manipulated_prompt_obj"]
+        if isinstance(manip_prompt_obj, list):
+            manip_prompt_obj = manip_prompt_obj[0]
+        #prompt = interaction.get('manipulated_prompt_obj', {}).get('inputs', '')
+        prompt = manip_prompt_obj.get('inputs', '')
         response = interaction.get('raw_response_obj', {}).get('response', '')
         model_name = interaction.get('raw_response_obj', {}).get('clem_player', {}).get('model_name', 'Unknown')
 
@@ -241,12 +245,13 @@ def get_cost(token_df):
     token_cost = round((token_df['token_cost'].sum()), 6)
     flops_cost = round((token_df['flops_cost'].sum()), 6)
     total_tokens = token_df['total_tokens'].sum()
+    total_petaflops = token_df['petaflops'].sum()
     
     # Calculate cost per 1K tokens
     token_cost_per_1k_tokens = round(((token_cost / total_tokens) * 1000), 6)
     flops_cost_per_1k_tokens = round(((flops_cost / total_tokens) * 1000), 6)
     
-    return token_cost, flops_cost, token_cost_per_1k_tokens, flops_cost_per_1k_tokens
+    return total_petaflops, token_cost, flops_cost, token_cost_per_1k_tokens, flops_cost_per_1k_tokens
 
 def display_cost_summary(token_df):
     """
@@ -294,7 +299,7 @@ def compute_cost(base_dir):
     results = {}    
 
     for model in os.listdir(base_dir):
-        if model.endswith(".json") or model.endswith(".log"):
+        if model == "corpus_dialogues" or not os.path.isdir(os.path.join(base_dir, model)):# or model == "gpt-4o-2024-08-06-t0.0--gpt-4o-2024-08-06-t0.0":
             continue
         model_path = os.path.join(base_dir, model)
         for game in os.listdir(model_path):
@@ -313,10 +318,11 @@ def compute_cost(base_dir):
 
                 episode_costs = []
                 episode_tokens = {}
+                num_episodes = 0
                 for episode in os.listdir(exp_path):
                     if episode.endswith(".json"):
                         continue
-
+                    num_episodes += 1
                     episode_path = os.path.join(exp_path, episode)
                     for filename in os.listdir(episode_path):
                         if not filename in ["requests.json", "interactions.json"]:
@@ -326,31 +332,48 @@ def compute_cost(base_dir):
                             with open(os.path.join(episode_path, filename), "r") as f:
                                 interaction_data = json.load(f)
                             token_df_api = compute_tokens_api_style(interaction_data, model)
-                            token_cost_api, flops_cost_api, token_cost_per_1k_tokens_api, flops_cost_per_1k_tokens_api = get_cost(token_df_api)
-                            episode_costs.append({'api_cost': {'token_cost': token_cost_api, 'flops_cost': flops_cost_api, 
+                            total_petaflops, token_cost_api, flops_cost_api, token_cost_per_1k_tokens_api, flops_cost_per_1k_tokens_api = get_cost(token_df_api)
+                            episode_costs.append({'api_cost': {'token_cost': token_cost_api, 'flops_cost': flops_cost_api,
+                                                               'total_petaflops': total_petaflops,
                                                                 'token_cost_per_1k_tokens': token_cost_per_1k_tokens_api,
                                                                 'flops_cost_per_1k_tokens': flops_cost_per_1k_tokens_api}})
                         elif filename == "requests.json":
                             with open(os.path.join(episode_path, filename), "r") as f:
                                 requests_data = json.load(f)
+                            print(f"Model: {model}, Game: {game}, Episode: {episode}")
                             token_df_full = compute_tokens_local_style(requests_data)
-                            token_cost_full, flops_cost_full, token_cost_per_1k_tokens_full, flops_cost_per_1k_tokens_full = get_cost(token_df_full)
+                            total_petaflops, token_cost_full, flops_cost_full, token_cost_per_1k_tokens_full, flops_cost_per_1k_tokens_full = get_cost(token_df_full)
                             episode_costs.append({'full_cost': {'token_cost': token_cost_full, 'flops_cost': flops_cost_full, 
+                                                               'total_petaflops': total_petaflops,                                                                
                                                                 'token_cost_per_1k_tokens': token_cost_per_1k_tokens_full,
                                                                 'flops_cost_per_1k_tokens': flops_cost_per_1k_tokens_full}})
 
                 # Calculate the total cost for the experiment
                 token_cost_api = sum([cost['api_cost']['token_cost'] for cost in episode_costs if 'api_cost' in cost])
+                token_cost_api_dialogue = round(token_cost_api/num_episodes, 5)
                 token_cost_full = sum([cost['full_cost']['token_cost'] for cost in episode_costs if 'full_cost' in cost])
+                token_cost_full_dialogue = round(token_cost_full/num_episodes, 5)
                 flop_cost_api = sum([cost['api_cost']['flops_cost'] for cost in episode_costs if 'api_cost' in cost])
+                flop_cost_api_dialogue = round(flop_cost_api/num_episodes, 5)
                 flop_cost_full = sum([cost['full_cost']['flops_cost'] for cost in episode_costs if 'full_cost' in cost])
+                flop_cost_full_dialogue = round(flop_cost_full/num_episodes, 5)
+                petaflops_full = sum([cost['full_cost']['total_petaflops'] for cost in episode_costs if 'full_cost' in cost])
+                petaflops_full_dialogue = round(petaflops_full/num_episodes, 2)
                 # Store the results
 
-                results[game][model][exp] = {"token_cost_api": round(token_cost_api, 2),
-                                             "flop_cost_api": round(flop_cost_api, 2),                                             
-                                             "token_cost_full": round(token_cost_full, 2),
-                                             "flop_cost_full": round(flop_cost_full, 2),
-                                              "episodes": episode_costs}
+                results[game][model][exp] = {"token_cost_api": round(token_cost_api, 5),
+                                             "token_cost_api_dialogue": round(token_cost_api_dialogue, 5),
+                                             "flop_cost_api": round(flop_cost_api, 5),
+                                             "flop_cost_api_dialogue": round(flop_cost_api_dialogue, 5),                       
+                                             "token_cost_full": round(token_cost_full, 5),
+                                             "token_cost_full_dialogue": round(token_cost_full_dialogue, 5),
+                                             "flop_cost_full": round(flop_cost_full, 5),
+                                             "flop_cost_full_dialogue": round(flop_cost_full_dialogue, 5),
+                                             "total_petaflops": round(petaflops_full, 5),
+                                             "total_petaflops_dialogue": round(petaflops_full_dialogue, 5),
+                                             "num_episodes": num_episodes,
+                                              #"episodes": episode_costs
+                                            }
                 #results[game][model][exp]["cost"] = round(sum(episode_costs), 2)
 
 
@@ -361,23 +384,29 @@ def compute_cost(base_dir):
         overall_flop_cost = 0.0
         overall_api_tokens_count = 0.0
         overall_flop_tokens_count = 0.0
+        overall_petaflops_count = 0
         for model in results[game]:
             for exp in results[game][model]:
                 overall_api_cost += results[game][model][exp]["token_cost_api"]
                 overall_api_tokens_count += results[game][model][exp]["token_cost_full"]
                 overall_flop_cost += results[game][model][exp]["flop_cost_api"]
                 overall_flop_tokens_count += results[game][model][exp]["flop_cost_full"]
+                overall_petaflops_count += results[game][model][exp]["total_petaflops"]
+            '''
             results[game][model]["overall"] = {
                 "token_cost_api": round(overall_api_cost, 2),
                 "flop_cost_api": round(overall_flop_cost, 2),
                 "token_cost_full": round(overall_api_tokens_count, 2),
-                "flop_cost_full": round(overall_flop_tokens_count, 2)
+                "flop_cost_full": round(overall_flop_tokens_count, 2),
+                "total_petaflops": round(overall_petaflops_count, 5)
             }
+            '''
         results[game]["overall"] = {
-            "token_cost_api": round(overall_api_cost, 2),
-            "flop_cost_api": round(overall_flop_cost, 2),
-            "token_cost_full": round(overall_api_tokens_count, 2),
-            "flop_cost_full": round(overall_flop_tokens_count, 2)
+            "token_cost_api": round(overall_api_cost, 5),
+            "flop_cost_api": round(overall_flop_cost, 5),
+            "token_cost_full": round(overall_api_tokens_count, 5),
+            "flop_cost_full": round(overall_flop_tokens_count, 5),
+            "total_petaflops": round(overall_petaflops_count, 5)
         }
         print(f"Game: {game}")
         print(f"Overall API Cost: ${results[game]['overall']['token_cost_api']}")
@@ -391,4 +420,4 @@ def compute_cost(base_dir):
 
 
 if __name__ == '__main__':
-    compute_cost("/home/admin/Desktop/codebase/cocobots/todsystems/clembench/cross_modprog_single/")
+    compute_cost("/home/users/kranti/project/kranti/testtodsystem/modllm/clembench/modllm_single_2/")

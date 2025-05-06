@@ -50,7 +50,7 @@ def getslotvaluesbycategories(slots: dict):
                             continue
                         book_fail_slots[domain][f"book{k}"] = v                        
 
-                elif key == "reqt":
+                elif key in ["reqt", "req"]:
                     if domain not in attrslots:
                         attrslots[domain] = {}
                     
@@ -121,8 +121,17 @@ def _compare_slots(gt_slots: dict, gt_fail_slots: dict, gen_slots: dict):
                     if domain in gtfailcompslots and key in gtfailcompslots[domain]:
                         if gtfailcompslots[domain][key] != gencompslots[domain][key]:
                             data_match = False
-                            if key in ["leaveat", "arriveby"]:
-                                data_match = True#checktimecloseness(gtfailcompslots[domain][key], gencompslots[domain][key])
+                            #if key in ["leaveat", "arriveby"]:
+                            #    data_match = True#checktimecloseness(gtfailcompslots[domain][key], gencompslots[domain][key])
+
+                            if key == "leaveat":
+                                #data_match = True
+                                if value < gencompslots[domain][key]:
+                                    data_match = True
+                            elif key == "arriveby":
+                                if value > gencompslots[domain][key]:
+                                    data_match = True
+                                #data_match = True
 
                             if not data_match:
                                 mvalues.append({domain: {"gt": {key: gtfailcompslots[domain][key]}, "gen": {key: gencompslots[domain][key]}}})
@@ -131,8 +140,19 @@ def _compare_slots(gt_slots: dict, gt_fail_slots: dict, gen_slots: dict):
                             pass
                     else:
                         data_match = False
-                        if key in ["leaveat", "arriveby"]:
-                            data_match = True#checktimecloseness(value, gencompslots[domain][key])
+                        if key == "leaveat":
+                            #print(value, gencompslots[domain][key])
+                            if value < gencompslots[domain][key]:
+                                data_match = True
+                            #data_match = True
+                        elif key == "arriveby":
+                            if value > gencompslots[domain][key]:
+                                data_match = True
+                            #data_match = True
+                        
+
+                        #if key in ["leaveat", "arriveby"]:
+                        #    data_match = True#checktimecloseness(value, gencompslots[domain][key])
                         
                         if not data_match:
                             mvalues.append({domain: {"gt": {key: value}, "gen": {key: gencompslots[domain][key]}}})
@@ -232,7 +252,7 @@ def compute_scores(base_dir):
                             infoslots_gt, bookslots_gt, attrslots_gt, infofailslots_gt, bookfailslots_gt = getslotvaluesbycategories(gt_slots)
                             infoslots_gen, bookslots_gen, attrslots_gen, *_ = getslotvaluesbycategories(gen_slots_processed)
 
-                            inform_episode, book_episode, attr_episode = 0, 0, 1
+                            inform_episode, book_episode, attr_episode = 0, 0, 0
                             status, _ = _compare_slots(infoslots_gt, infofailslots_gt, infoslots_gen)
                             if status:
                                 inform_episode = 1
@@ -242,12 +262,22 @@ def compute_scores(base_dir):
                                     status, _ = _compare_slots(bookslots_gt, bookfailslots_gt, bookslots_gen)
                                     book_episode = 1 if status else 0
                                     game_loss = 0 if status else 1
+
+                                if attrslots_gt:
+                                    status, _ = _compare_slots(attrslots_gt, {}, attrslots_gen)
+                                    attr_episode = 1 if status else 0
+
+                                else:
+                                    attr_episode = 1
+
+
                             else:
                                 game_loss = 1
-
+                            '''
                             if attrslots_gt:
                                 status, _ = _compare_slots(attrslots_gt, attrslots_gen)
                                 attr_episode = 1 if status else 0
+                            '''
 
                         num_episodes.setdefault(domain_data, 0)
                         num_episodes[domain_data] += 1
@@ -302,5 +332,5 @@ def compute_scores(base_dir):
 
 
 compute_scores(
-    "/home/admin/Desktop/codebase/cocobots/todsystems/clembench/modllm_single_2/"
+    "/home/users/kranti/project/kranti/testtodsystem/hetod/clembench/cross_hetod_single_1/"
 )

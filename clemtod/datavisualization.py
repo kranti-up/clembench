@@ -36,34 +36,60 @@ model_params_billions = {
 
 
 data = {
-    'Llama-3.2-1B': {'size': 1, 'monolithic_llm': {'Entity Match': 0.0, 'Attributes': 0.0, 'Booking Success': 0.0, 'token_cost': 0.0, 'flop_cost': 0.01},
-                     'modular_prog': {'Entity Match': 0.0, 'Attributes': 0.0, 'Booking Success': 0.0, 'token_cost': 0.0, 'flop_cost': 0.01},
-                     'modular_llm': {'Entity Match': 0.0, 'Attributes': 0.0, 'Booking Success': 0.0, 'token_cost': 0.0, 'flop_cost': 0.01},
+    'Llama-3.2-1B': {'size': 1, 'monolithic_llm': {'Entity Match': 0.0, 'Attributes': 0.0, 'Booking Success': 0.0,
+                                                   'token_cost': 0.00081, 'flop_cost': 0.00736, 'total_petaflops': 8.59},
+                     'modular_prog': {'Entity Match': 0.0, 'Attributes': 0.0, 'Booking Success': 0.0,
+                                      'token_cost': 0.00087, 'flop_cost': 0.00726, 'total_petaflops': 8.46519},
+                     'modular_llm': {'Entity Match': 0.0, 'Attributes': 0.0, 'Booking Success': 0.0,
+                                     'token_cost': 0.00081, 'flop_cost': 0.00715, 'total_petaflops': 8.33713},
     },
-    'Llama-3.2-3B': {'size': 3, 'monolithic_llm': {'Entity Match': 0.09, 'Attributes': 0.29, 'Booking Success': 0.07, 'token_cost': 0.01, 'flop_cost': 1.6},
-                     'modular_prog': {'Entity Match': 0.0, 'Attributes': 0.03, 'Booking Success': 0.0, 'token_cost': 0.07, 'flop_cost': 2.41},
-                     'modular_llm': {'Entity Match': 0.0, 'Attributes': 0.0, 'Booking Success': 0.0, 'token_cost': 0.0, 'flop_cost': 0.31},
-    },
-
-    'Qwen2.5-7B': {'size': 7, 'monolithic_llm': {'Entity Match': 0.15, 'Attributes': 0.31, 'Booking Success': 0.10, 'token_cost': 0.01, 'flop_cost': 1.88},
-                     'modular_prog': {'Entity Match': 0.10, 'Attributes': 0.28, 'Booking Success': 0.10, 'token_cost': 0.11, 'flop_cost': 4.62},
-                     'modular_llm': {'Entity Match': 0.0, 'Attributes': 0.0, 'Booking Success': 0.0, 'token_cost': 0.01, 'flop_cost': 0.23},
-    },
-
-    'Llama-3.1-8B': {'size': 8, 'monolithic_llm': {'Entity Match': 0.33, 'Attributes': 0.60, 'Booking Success': 0.22, 'token_cost': 0.01, 'flop_cost': 3.29},
-                     'modular_prog': {'Entity Match': 0.0, 'Attributes': 0.0, 'Booking Success': 0.0, 'token_cost': 0.07, 'flop_cost': 6.61},
-                     'modular_llm': {'Entity Match': 0.0, 'Attributes': 0.0, 'Booking Success': 0.0, 'token_cost': 0.01, 'flop_cost': 6.48},
+    'Llama-3.2-3B': {'size': 3, 'monolithic_llm': {'Entity Match': 0.08, 'Attributes': 0.15, 'Booking Success': 0.08,
+                                                   'token_cost': 0.00734, 'flop_cost': 0.46588, 'total_petaflops': 541.909},
+                     'modular_prog': {'Entity Match': 0.0, 'Attributes': 0.0, 'Booking Success': 0.0,
+                                      'token_cost': 0.00737, 'flop_cost': 0.36224, 'total_petaflops': 422.8296},
+                     'modular_llm': {'Entity Match': 0.03, 'Attributes': 0.03, 'Booking Success': 0.05,
+                                     'token_cost': 0.0022, 'flop_cost': 0.10284, 'total_petaflops': 119.18},
     },
 
-    'Qwen2.5-32B': {'size': 32, 'monolithic_llm': {'Entity Match': 0.62, 'Attributes': 0.98, 'Booking Success': 0.6, 'token_cost': 0.12, 'flop_cost': 2.91},
-                     'modular_prog': {'Entity Match': 0.65, 'Attributes': 0.80, 'Booking Success': 0.65, 'token_cost': 0.52, 'flop_cost': 4.26},
-                     'modular_llm': {'Entity Match': 0.17, 'Attributes': 0.28, 'Booking Success': 0.17, 'token_cost': 0.15, 'flop_cost': 3.15},
+    'Qwen2.5-7B': {'size': 7, 'monolithic_llm': {'Entity Match': 0.10, 'Attributes': 0.12, 'Booking Success': 0.10,
+                                                 'token_cost': 0.0957, 'flop_cost': 0.9123, 'total_petaflops': 105.23},
+                     'modular_prog': {'Entity Match': 0.47, 'Attributes': 0.63, 'Booking Success': 0.47,
+                                      'token_cost': 0.01023, 'flop_cost': 0.37401, 'total_petaflops': 435.56},
+                     'modular_llm': {'Entity Match': 0.30, 'Attributes': 0.43, 'Booking Success': 0.30,
+                                     'token_cost': 0.0032, 'flop_cost': 0.13686, 'total_petaflops':159.26},
+    },
+
+    'Llama-3.1-8B': {'size': 8, 'monolithic_llm': {'Entity Match': 0.32, 'Attributes': 0.42, 'Booking Success': 0.18,
+                                                   'token_cost': 0.218, 'flop_cost': 0.442, 'total_petaflops': 515.57},
+                     'modular_prog': {'Entity Match': 0.0, 'Attributes': 0.0, 'Booking Success': 0.0,
+                                      'token_cost': 0.01112, 'flop_cost': 0.66753, 'total_petaflops': 780.96},
+                     'modular_llm': {'Entity Match': 0.13, 'Attributes': 0.18, 'Booking Success': 0.10,
+                                     'token_cost': 0.00238, 'flop_cost': 0.289, 'total_petaflops': 265.36},
+    },
+
+    'Qwen2.5-32B': {'size': 32, 'monolithic_llm': {'Entity Match': 0.95, 'Attributes': 0.98, 'Booking Success': 0.71,
+                                                   'token_cost': 0.00664, 'flop_cost': 0.17, 'total_petaflops': 199},
+                     'modular_prog': {'Entity Match': 0.58, 'Attributes': 0.70, 'Booking Success': 0.41,
+                                      'token_cost': 0.05, 'flop_cost': 0.48, 'total_petaflops': 564.40},
+                     'modular_llm': {'Entity Match': 0.82, 'Attributes': 0.82, 'Booking Success': 0.68,
+                                     'token_cost': 0.0087, 'flop_cost': 0.258, 'total_petaflops': 298.82},
     },            
 
-    'Llama-3.3-70B': {'size': 70, 'monolithic_llm': {'Entity Match': 0.65, 'Attributes': 0.90, 'Booking Success': 0.65, 'token_cost': 0.03, 'flop_cost': 13.23},
-                     'modular_prog': {'Entity Match': np.nan, 'Attributes': np.nan, 'Booking Success': np.nan, 'token_cost':np.nan, 'flop_cost': np.nan},
-                     'modular_llm': {'Entity Match': np.nan, 'Attributes': np.nan, 'Booking Success': np.nan, 'token_cost': np.nan, 'flop_cost': np.nan},
+    'Llama-3.3-70B': {'size': 70, 'monolithic_llm': {'Entity Match': 0.83, 'Attributes': 0.92, 'Booking Success': 0.69,
+                                                     'token_cost': 0.22, 'flop_cost': 0.50, 'total_petaflops': 581.51},
+                     'modular_prog': {'Entity Match': 0.53, 'Attributes': 0.67, 'Booking Success': 0.43,
+                                      'token_cost':0.02, 'flop_cost': 1.33, 'total_petaflops': 1544.74},
+                     'modular_llm': {'Entity Match': 0.70, 'Attributes': 0.83, 'Booking Success': 0.52,
+                                     'token_cost': 0.0069, 'flop_cost': 1.3575, 'total_petaflops': 1573.9},
     },
+
+    'GPT-4o': {'size': np.nan, 'monolithic_llm': {'Entity Match': 0.72, 'Attributes': 0.95, 'Booking Success': 0.81,
+                                                     'token_cost': 0.01983, 'flop_cost': np.nan, 'total_petaflops': np.nan},
+                     'modular_prog': {'Entity Match': 0.85, 'Attributes': 0.93, 'Booking Success': 0.65,
+                                      'token_cost':2.1134, 'flop_cost': np.nan, 'total_petaflops': np.nan},
+                     'modular_llm': {'Entity Match': 0.87, 'Attributes': 0.98, 'Booking Success': 0.84,
+                                     'token_cost': 0.031, 'flop_cost': np.nan, 'total_petaflops': np.nan},
+    },    
 }
 
 data_cross_model_multi_us = {
@@ -351,6 +377,14 @@ def cost_performance_graph_all(performance_data):
     plt.savefig(f"/home/admin/Desktop/codebase/cocobots/todsystems/clembench/mono_single/cost_perf_comparison.png")
 
 
+def get_label_name(arch_name):
+        if arch_name == 'monolithic_llm':
+            return "Monolithic"
+        elif arch_name == 'modular_prog':
+            return "Modular Prog"
+        elif arch_name == 'modular_llm':
+            return "Modular LLM"""
+
 def tasksuccess_arch(data):
     # Transform the data
     rows = []
@@ -370,19 +404,21 @@ def tasksuccess_arch(data):
 
     # Re-plotting the updated graph
     plt.figure(figsize=(12, 6))
+    label_name = None
     for arch in df['Architecture'].unique():
+        label_name = get_label_name(arch)
         subset = df[df['Architecture'] == arch]
-        plt.plot(subset['Model'], subset['Booking Success'], marker='o', label=arch)
+        plt.plot(subset['Model'], subset['Booking Success'], marker='o', markersize=15, label=label_name)
 
-    plt.xticks(rotation=45)
-    plt.xlabel('Model')
-    plt.ylabel('Booking Success')
-    plt.title('Booking Success Vs Model')
-    plt.legend(title='Architecture')
+    plt.xticks(rotation=45, fontsize=18)
+    plt.xlabel('Model', fontsize=18)
+    plt.ylabel('Booking Accuracy', fontsize=18)
+    #plt.title('Booking Success Vs Model')
+    plt.legend(title='Dialogue System Architecture', fontsize=18)
     plt.tight_layout()
     plt.grid(True)
-    #plt.show() 
-    plt.savefig(f"/home/admin/Desktop/codebase/cocobots/todsystems/clembench/mono_single/perf_arch_comp.png")
+    #plt.show()
+    plt.savefig(f"/home/admin/Desktop/codebase/cocobots/todsystems/clembench/statgraphs/perf_arch_comp.png")
 
 
 def taskcost_arch_mul_graphs(data):
@@ -462,30 +498,43 @@ def taskcost_arch_single_graph(data):
 
     # Plot token cost on ax1
     for arch in cost_df['Architecture'].unique():
-        subset = cost_df[cost_df['Architecture'] == arch]
-        ax1.plot(subset['Model'], subset['Token Cost'], marker='o', linestyle='--', label=f'{arch} - Token')
+        label_name = get_label_name(arch)
+        #subset = cost_df[cost_df['Architecture'] == arch]
+        subset = cost_df[cost_df['Architecture'] == arch].copy()
+        subset['Token Cost'] += np.random.uniform(-0.001, 0.001, len(subset))  # vertical jitter
+
+        ax1.plot(subset['Model'], subset['Token Cost'], marker='o',  markersize=12, linestyle='--', label=f'{label_name} - Token')
+
 
     # Plot flop cost on ax2
     for arch in cost_df['Architecture'].unique():
-        subset = cost_df[cost_df['Architecture'] == arch]
-        ax2.plot(subset['Model'], subset['FLOP Cost'], marker='x', linestyle='-', label=f'{arch} - FLOP')
+        label_name = get_label_name(arch)
+        #subset = cost_df[cost_df['Architecture'] == arch]
+        subset = cost_df[cost_df['Architecture'] == arch].copy()
+        subset['FLOP Cost'] += np.random.uniform(-0.001, 0.001, len(subset))  # vertical jitter
+
+        ax2.plot(subset['Model'], subset['FLOP Cost'], marker='x',  markersize=12, linestyle='-', label=f'{label_name} - FLOP')
 
     # Formatting
-    ax1.set_xlabel('Model')
-    ax1.set_ylabel('Token Cost')
-    ax2.set_ylabel('FLOP Cost')
-    plt.xticks(rotation=45)
-    plt.title('Token Cost and FLOP Cost Vs Models')
+    ax1.set_xlabel('Model', fontsize=18)
+    ax1.set_ylabel('Token Cost ($)', fontsize=18)
+    ax2.set_ylabel('FLOPs Cost ($)', fontsize=18)
+    #plt.xticks(rotation=45, fontsize=60)
+    ax1.tick_params(axis='x', labelsize=17, rotation=30)
+    ax1.tick_params(axis='y', labelsize=15)
+    ax2.tick_params(axis='y', labelsize=15)
+    #plt.title('Token Cost and FLOP Cost Vs Models')
 
     # Combine legends from both axes
     lines_1, labels_1 = ax1.get_legend_handles_labels()
     lines_2, labels_2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines_1 + lines_2, labels_1 + labels_2, title='Architecture - Cost Type', loc='upper left')
+    #ax1.legend(lines_1 + lines_2, labels_1 + labels_2, title='DS Architecture - Cost Type', loc='upper left', fontsize=14)
+    ax1.legend(lines_1 + lines_2, labels_1 + labels_2, title='', loc='upper left', fontsize=14)
 
     plt.tight_layout()
     plt.grid(True)
     #plt.show()    
-    plt.savefig(f"/home/admin/Desktop/codebase/cocobots/todsystems/clembench/mono_single/cost_arch_comp.png")
+    plt.savefig(f"/home/admin/Desktop/codebase/cocobots/todsystems/clembench/statgraphs/cost_arch_comp.png")
 
 
 def taskcost_booking_arch_2(data):
@@ -509,7 +558,8 @@ def taskcost_booking_arch_2(data):
                 'Size': size,
                 'Architecture': arch,
                 'Token Cost': token_cost,
-                'FLOP Cost': flop_cost
+                'FLOP Cost': flop_cost,
+                'Total Flops': info[arch]['total_petaflops']
             })            
 
     df = pd.DataFrame(rows)
@@ -519,7 +569,9 @@ def taskcost_booking_arch_2(data):
     cost_df = cost_df.sort_values(by='Size')    
 
     # Compute raw FLOPs per token and update cost_df
-    cost_df['Raw FLOPs per Token'] = cost_df['Model'].map(lambda m: 2 * model_params_billions.get(m, np.nan) * 1e9)
+    #cost_df['Raw FLOPs per Token'] = cost_df['Model'].map(lambda m: 2 * model_params_billions.get(m, np.nan) * 1e9)
+    cost_df['Raw FLOPs per Token'] = cost_df['Total Flops'] * 1e15
+
 
     # Merge with performance data
     merged_df = pd.merge(df, cost_df, on=['Model', 'Architecture', 'Size'])
@@ -527,30 +579,36 @@ def taskcost_booking_arch_2(data):
     plt.figure(figsize=(12, 8))
 
     for arch in merged_df['Architecture'].unique():
+        label_name = get_label_name(arch)
         subset = merged_df[merged_df['Architecture'] == arch]
-        plt.scatter(subset['Raw FLOPs per Token'], subset['Booking Success'], s=100, label=arch, alpha=0.8)
+        plt.scatter(subset['Raw FLOPs per Token'], subset['Booking Success'], s=100, label=label_name, alpha=0.8)
 
         # Annotate points
         for _, row in subset.iterrows():
             if pd.notna(row['Raw FLOPs per Token']) and pd.notna(row['Booking Success']):
-                plt.text(row['Raw FLOPs per Token'], row['Booking Success'], row['Model'], fontsize=8, ha='center', va='bottom')
+                plt.text(row['Raw FLOPs per Token'], row['Booking Success'], row['Model'], fontsize=22, ha='center', va='bottom')
 
     # Apply log scale with defined limits and custom ticks
+    '''
     plt.xscale('log')
     plt.xticks(
         ticks=[2e9, 1e10, 2e10, 5e10, 1e11, 2e11],
         labels=["2e9", "1e10", "2e10", "5e10", "1e11", "2e11"]
     )
+    '''
 
     # Axis labels and styling
-    plt.xlabel('FLOPs per Token (log scale)')
-    plt.ylabel('Booking Success')
-    plt.title('Booking Success vs FLOPs per Token')
+    plt.xlabel('FLOPs per Token', fontsize=20)
+    plt.ylabel('Booking Success', fontsize=20)
+    #plt.title('Booking Success vs FLOPs per Token')
+    plt.xticks(fontsize=20)
+    plt.yticks(fontsize=20)
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
-    plt.legend(title='Architecture')
+    #plt.legend(title='Dialogue System Architecture', fontsize=18)
+    plt.legend(title='', fontsize=20)
     plt.tight_layout()
     #plt.show()
-    plt.savefig(f"/home/admin/Desktop/codebase/cocobots/todsystems/clembench/mono_single/cost_perf_arch_comp.png")
+    plt.savefig(f"/home/admin/Desktop/codebase/cocobots/todsystems/clembench/statgraphs/cost_perf_arch_comp.png")
 
 
 def taskcost_booking_arch(data):
@@ -630,11 +688,11 @@ def cross_model_multi_us_perf(data_cross_model_multi_us, filename):
 
 #line_graph_order_by_size(data)
 #cost_performance_graph_all(model_meta)
-#tasksuccess_arch(data)
+#tasksuccess_arch(data)   #Use this API for perf vs arch graph
 #taskcost_arch_mul_graphs(data)
-#taskcost_arch_single_graph(data)
+taskcost_arch_single_graph(data)  #Use this API for cost vs arch graph
 #tasksuccess_arch(data)
 #taskcost_arch_single_graph(data)
-#taskcost_booking_arch_2(data)
+taskcost_booking_arch_2(data) #Use this API for cost vs arch graph
 #cross_model_multi_us_perf(data_cross_model_multi_us, f"/home/admin/Desktop/codebase/cocobots/todsystems/clembench/mono_single/cross_model_multi_us.png")
-cross_model_multi_us_perf(data_cross_model_multi_ds, f"/home/admin/Desktop/codebase/cocobots/todsystems/clembench/mono_single/cross_model_multi_ds.png")
+#cross_model_multi_us_perf(data_cross_model_multi_ds, f"/home/admin/Desktop/codebase/cocobots/todsystems/clembench/mono_single/cross_model_multi_ds.png")
