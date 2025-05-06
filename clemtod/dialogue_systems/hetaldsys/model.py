@@ -167,7 +167,7 @@ class ZeroShotOpenAILLM(SimplePromptedLLM):
             self.player_b.history= [{"role": "user", "content": ""}]
             self.player_b.history[-1]["content"] += text
 
-            prompt, raw_answer, answer = self.player_b(self.player_b.history, current_turn, None)
+            prompt, raw_answer, answer = self.player_b(self.player_b.history, current_turn, None, None)
             return prompt, raw_answer, answer    
         except Exception as e:
             logger.error(f"Exception in ZeroShotOpenAILLM = {e}")
@@ -209,7 +209,7 @@ class ZeroShotOpenAIChatLLM(ZeroShotOpenAILLM):
         try:
             self.player_b.history= [{"role": "user", "content": ""}]
             self.player_b.history[-1]["content"] += text
-            prompt, raw_answer, answer = self.player_b(self.player_b.history, current_turn, None)
+            prompt, raw_answer, answer = self.player_b(self.player_b.history, current_turn, None, None)
             return prompt, raw_answer, answer
         except Exception as e:
             logger.error(f"Exception in ZeroShotOpenAIChatLLM = {e}")

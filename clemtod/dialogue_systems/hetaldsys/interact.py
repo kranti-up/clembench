@@ -65,7 +65,7 @@ class Interact:
         self.model_id = model_id
         self.player_dict = player_dict
         self.db_path = db_path
-        logger.info(f"Interact: model_id: {model_id}")
+        logger.info(f"Interact: model_id: {model_id} db_path = {db_path}")
         self.__setup()
 
     def __setup(self):
@@ -97,7 +97,7 @@ class Interact:
         parser.add_argument(
             "--n",
             type=str,
-            default="games/taskdsystem/dialogue_systems/hetaldsys/results",
+            default="clembench/dialogue_systems/hetaldsys/results",
         )
         parser.add_argument("--run_name", type=str, default="")
         # parser.add_argument("--use_gt_state", action='store_true')
@@ -564,9 +564,10 @@ class Interact:
         self.history.append("Assistant: " + response)
 
         logger.info(f"Returning response from dmsystems: {response}")
-        #result = {"status": "follow-up", "details": response}
+        result = {"status": "follow-up", "details": response}
         #return self.history[-2], result, result
-        return dsys_logs, response, response
+        #return dsys_logs, response, response
+        return dsys_logs, result, result
 
     def getgenslots(self):
         # return self.total_state[next(iter(self.total_state))]
