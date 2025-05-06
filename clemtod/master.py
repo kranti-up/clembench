@@ -60,6 +60,8 @@ class DMSystemMaster(GameMaster):
     def setup(self, data: Dict, game_id: int) -> None:
         """Setup the episode (mandatory)."""
 
+        #logging.disable(logging.CRITICAL) 
+
         self._setcommonsetup(data, game_id)
         self._setgamespecificsetup(data, game_id)
 
@@ -329,9 +331,9 @@ class DMSystemMaster(GameMaster):
                 return None
 
             # add B's reply to A's history
-            logger.info(f"Appended Player B answer to PlayerA\n{response}")
-            self._append_utterance(response, "a", "user")
-            self.gen_dialogue[-1].update({"system": response})
+            logger.info(f"Appended Player B answer to PlayerA\n{details}")
+            self._append_utterance(details, "a", "user")
+            self.gen_dialogue[-1].update({"system": details})
             # also add the reply to the transcript
             action = {
                 "type": "send message",

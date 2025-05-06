@@ -109,7 +109,8 @@ def processgenslots(gen_slots: dict) -> dict:
                             modgen_slots[domain_lower][key_lower][k.lower()] = str(v).lower()
                 else:
                     if key == "tickets":
-                        modgen_slots[domain_lower][key_lower]["people"] = str(value).lower()
+                        #modgen_slots[domain_lower][key_lower]["people"] = str(value).lower()
+                        modgen_slots[domain_lower]["people"] = str(value).lower()
                     else:
                         modgen_slots[domain_lower][key_lower] = str(value).lower()
             elif domain_lower == "restaurant":
@@ -141,13 +142,17 @@ def processgenslots(gen_slots: dict) -> dict:
                             modgen_slots[domain_lower][key_lower][k.lower()] = str(v).lower()
                 else:
                     if key == "bookpeople":
-                        modgen_slots[domain_lower][key_lower]["people"] = str(value).lower()
+                        #modgen_slots[domain_lower][key_lower]["people"] = str(value).lower()
+                        modgen_slots[domain_lower]["people"] = str(value).lower()
                     elif key == "bookday":
-                        modgen_slots[domain_lower][key_lower]["day"] = str(value).lower()
+                        #modgen_slots[domain_lower][key_lower]["day"] = str(value).lower()
+                        modgen_slots[domain_lower]["day"] = str(value).lower()
                     elif key == "booktime":
-                        modgen_slots[domain_lower][key_lower]["time"] = str(value).lower()
+                        #modgen_slots[domain_lower][key_lower]["time"] = str(value).lower()
+                        modgen_slots[domain_lower]["time"] = str(value).lower()
                     else:
-                        modgen_slots[domain_lower][key_lower][key.lower()] = str(value).lower()
+                        #modgen_slots[domain_lower][key_lower][key.lower()] = str(value).lower()
+                        modgen_slots[domain_lower][key_lower] = str(value).lower()
             elif domain_lower == "hotel":
                 if key_lower in ["info"]:
                     for k, v in value.items():
@@ -180,18 +185,23 @@ def processgenslots(gen_slots: dict) -> dict:
                             modgen_slots[domain_lower][key_lower][k.lower()] = str(v).lower()
                 else:
                     if key == "bookpeople":
-                        modgen_slots[domain_lower][key_lower]["people"] = str(value).lower()
+                        #modgen_slots[domain_lower][key_lower]["people"] = str(value).lower()
+                        modgen_slots[domain_lower]["people"] = str(value).lower()
                     elif key == "bookday":
-                        modgen_slots[domain_lower][key_lower]["day"] = str(value).lower()
+                        #modgen_slots[domain_lower][key_lower]["day"] = str(value).lower()
+                        modgen_slots[domain_lower]["day"] = str(value).lower()
                     elif key == "booktime":
-                        modgen_slots[domain_lower][key_lower]["time"] = str(value).lower()
+                        #modgen_slots[domain_lower][key_lower]["time"] = str(value).lower()
+                        modgen_slots[domain_lower]["time"] = str(value).lower()
                     elif key == "bookstay":
-                        modgen_slots[domain_lower][key_lower]["stay"] = str(value).lower()
+                        #modgen_slots[domain_lower][key_lower]["stay"] = str(value).lower()
+                        modgen_slots[domain_lower]["stay"] = str(value).lower()
                     else:
-                        modgen_slots[domain_lower][key_lower][key.lower()] = str(value).lower()
+                        #modgen_slots[domain_lower][key_lower][key.lower()] = str(value).lower()
+                        modgen_slots[domain_lower][key.lower()] = str(value).lower()
             else:
                 modgen_slots[domain_lower][key_lower] = str(value).lower()
-
+    logger.info(f"Returning modgen_slots: {modgen_slots}")
     return modgen_slots
 
 def cleanupanswer(prompt_answer: str) -> str:
