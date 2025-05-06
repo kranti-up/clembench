@@ -111,7 +111,7 @@ class Attraction(Base, Veune):
     phone = Column(String)
     address = Column(String)
     postcode = Column(String)
-    entrance = Column(String)
+    entrance_fee = Column(String)
 
     def items(self):
         return OrderedDict(
@@ -121,7 +121,7 @@ class Attraction(Base, Veune):
             phone=self.phone,
             address=self.address,
             postcode=self.postcode,
-            entrance_fee=self.entrance,
+            entrance_fee=self.entrance_fee,
         ).items()
 
 
@@ -175,7 +175,7 @@ DOMAIN_CLASS_MAP = {
 }
 
 
-def query_venue_by_name(domain, name, db_path):
+def query_venue_by_name(domain, name, db_path=DB_PATH):
     '''Return one Venue object or None.'''
     assert domain in DOMAIN_CLASS_MAP
 
@@ -191,7 +191,7 @@ def query_venue_by_name(domain, name, db_path):
     return item
 
 
-def query_venue_by_name_or_address(domain, place, db_path):
+def query_venue_by_name_or_address(domain, place, db_path=DB_PATH):
     '''Return one Venue object or None.'''
     logger.info(f"query_venue_by_name_or_address: domain = {domain}, place = {place}, db_path = {db_path}")
     assert domain in DOMAIN_CLASS_MAP
@@ -207,7 +207,8 @@ def query_venue_by_name_or_address(domain, place, db_path):
     item = items.first()
     return item
 
-def query_train_by_id(id, db_path):
+
+def query_train_by_id(id, db_path=DB_PATH):
     '''Return one Train object or None.'''
     engine = create_engine(f'sqlite:///{db_path}')
     Base.metadata.create_all(engine)
@@ -220,7 +221,7 @@ def query_train_by_id(id, db_path):
     return item
 
 
-def query_trains(info, db_path):
+def query_trains(info, db_path=DB_PATH):
     engine = create_engine(f'sqlite:///{db_path}')
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
@@ -238,7 +239,7 @@ def query_trains(info, db_path):
     return items.all()
 
 
-def query_by_sql(sql, db_path):
+def query_by_sql(sql, db_path=DB_PATH):
     conn = sqlite3.connect(db_path)
     cursor = conn.execute(sql)
     records = cursor.fetchall()

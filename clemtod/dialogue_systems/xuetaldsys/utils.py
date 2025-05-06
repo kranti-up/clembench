@@ -10,11 +10,11 @@ from termcolor import colored
 
 DOMAINS = ['hotel', 'restaurant', 'attraction', 'train', 'taxi']
 
-DATA_DIR = 'games/clemtod/resources/data/en/multiwoz/'
-DATA_PATH = 'games/clemtod/resources/data/en/multiwoz/data.json'
+DATA_DIR = 'clemtod/resources/data/en/multiwoz/'
+DATA_PATH = 'clemtod/resources/data/en/multiwoz/data.json'
 
-DB_PATH = 'games/clemtod/resources/data/en/multiwoz/multiwoz.db'
-BOOK_DB_PATH = 'games/clemtod/dialogue_systems/xuetaldsys/results/multiwoz_book.db'
+DB_PATH = 'clemtod/resources/data/en/multiwoz/multiwoz_xe.db'
+BOOK_DB_PATH = 'clemtod/dialogue_systems/xuetaldsys/results/multiwoz_book.db'
 
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', "your-api-key")
 print(f'{OPENAI_API_KEY = }')

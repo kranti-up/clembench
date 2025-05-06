@@ -6,9 +6,9 @@ from termcolor import cprint
 
 import logging
 
-from dialogue_systems.xuetaldsys.agent import Agent
+#from dialogue_systems.xuetaldsys.agent import Agent
 from dialogue_systems.xuetaldsys.func_agent import FuncAgent
-from dialogue_systems.xuetaldsys.user import User
+#from dialogue_systems.xuetaldsys.user import User
 from dialogue_systems.xuetaldsys.utils import (AGENT_COLOR, DOMAINS, HEADER_COLOR, HEADER_WIDTH,
                    RESET_COLOR, USER_COLOR, calc_openai_cost)
 
@@ -162,7 +162,8 @@ class EngineDSystem:
             #assert final_sys_model.startswith('gpt-3.5-turbo-0613')
             agent = FuncAgent(model=self.model_name, player_llm=self.player_dict, db_path=self.db_path)
         else:
-            agent = Agent(model=self.model_name, player_llm=self.player_dict, db_path=self.db_path)
+            raise ValueError(f"Unknown agent type: {self.agent_type}")
+            #agent = Agent(model=self.model_name, player_llm=self.player_dict, db_path=self.db_path)
 
         self.agent = agent
 

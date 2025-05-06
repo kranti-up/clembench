@@ -1,4 +1,3 @@
-import json
 import langchain
 import langchain_community
 import openai
@@ -9,8 +8,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-#class ChatClientAdapter(openai.ChatCompletion):
-class ChatClientAdapter(openai.OpenAI):
+class ChatClientAdapter(openai.ChatCompletion):
 
     @classmethod
     def create(cls, prompt, *args, **kwargs):
@@ -19,23 +17,14 @@ class ChatClientAdapter(openai.OpenAI):
         messages=[
             {'role': 'user', 'content': prompt[0]},
         ]
-        # Core
-        #completion = super().create(messages=messages, *args, **kwargs)
-        completion = openai.OpenAI(api_key=openai.api_key).chat.completions.create(model=kwargs['model'],
-                                                                                   messages=messages,
-                                                                                   temperature=0,
-                                                                                   max_tokens=kwargs['max_tokens'])
 
-        response = completion.choices[0].message
-        if response.role != "assistant":  # safety check
-            raise AttributeError("Response message role is " + response.role + " but should be 'assistant'")
-        response_text = response.content.strip()
+        # Core
+        completion = super().create(messages=messages, *args, **kwargs)
 
         # Post-process
-        for choice in completion.choices:
-            assert choice.message.role == 'assistant'
-            choice.text = choice.message.content
-            choice.text = choice.text.strip()
+        for choice in completion['choices']:
+            assert choice['message']['role'] == 'assistant'
+            choice['text'] = choice['message']['content']
 
         logger.info(f"Response text: {response_text}")
 

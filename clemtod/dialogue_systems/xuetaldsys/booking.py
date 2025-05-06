@@ -6,7 +6,7 @@ from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from dialogue_systems.xuetaldsys.db import query_venue_by_name_or_address
-from dialogue_systems.xuetaldsys.utils import BOOK_DB_PATH, TableItem, clean_time
+from dialogue_systems.xuetaldsys.utils import DB_PATH, BOOK_DB_PATH, TableItem, clean_time
 
 import logging
 
@@ -41,7 +41,7 @@ Base = declarative_base()
 class RestaurantBook(Base, BookRecord):
     __tablename__ = 'restaurant_book'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True)
     refer_number = Column(String, nullable=False, unique=True)
     name = Column(String, nullable=False)
     people = Column(String, nullable=False)
@@ -52,7 +52,7 @@ class RestaurantBook(Base, BookRecord):
 class HotelBook(Base, BookRecord):
     __tablename__ = 'hotel_book'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True)
     refer_number = Column(String, nullable=False, unique=True)
     name = Column(String, nullable=False)
     people = Column(String, nullable=False)
@@ -63,7 +63,7 @@ class HotelBook(Base, BookRecord):
 class TrainBook(Base, BookRecord):
     __tablename__ = 'train_book'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True)
     refer_number = Column(String, nullable=False, unique=True)
     trainID = Column(String, nullable=False)
     tickets = Column(String, nullable=False)
@@ -81,9 +81,9 @@ DOMAIN_BOOK_CLASS_MAP = {
 }
 
 
-def check_db_exist(table, column, value, db_path):
-    logger.info(f"check_db_exist: {table}, {column}, {value}, {db_path}")
-    conn = sqlite3.connect(db_path)
+def check_db_exist(table, column, value):
+    logger.info(f"check_db_exist: {table}, {column}, {value}")
+    conn = sqlite3.connect(DB_PATH)
     sql = f'SELECT {column} FROM {table} WHERE LOWER({column}) = LOWER("{value}")'
     logger.info(f"check_db_exist: sql command = {sql}")
     result = conn.execute(sql)
@@ -111,7 +111,7 @@ def query_booking_by_refer_num(domain, refer_number, book_db_path=BOOK_DB_PATH):
 
 # region: DB Booking: restaurant, hotel, train
 
-def make_booking_db(domain, info, db_path, book_db_path=BOOK_DB_PATH):  # TODO: Refactor: split by domain
+def make_booking_db(domain, info, book_db_path=BOOK_DB_PATH):  # TODO: Refactor: split by domain
     assert domain in DOMAIN_BOOK_CLASS_MAP
 
     # Clean (lower)
@@ -187,13 +187,13 @@ def make_booking_db(domain, info, db_path, book_db_path=BOOK_DB_PATH):  # TODO: 
     
     # Check name
     if domain == 'restaurant':
-        if not check_db_exist('restaurant', 'name', info['name'], db_path):
+        if not check_db_exist('restaurant', 'name', info['name']):
             return False, f'Booking failed. "{info["name"]}" is not found in the restaurant database. Please provide a valid restaurant name.'
     elif domain == 'hotel':
-        if not check_db_exist('hotel', 'name', info['name'], db_path):
+        if not check_db_exist('hotel', 'name', info['name']):
             return False, f'Booking failed. "{info["name"]}" is not found in the hotel database. Please provide a valid hotel name.'
     elif domain == 'train':
-        if not check_db_exist('train', 'trainID', info['train id'], db_path):
+        if not check_db_exist('train', 'trainID', info['train id']):
             return False, f'Booking failed. "{info["train id"]}" is not found in the train databse. Please provide a valid train id.'
     else:
         raise ValueError(f'{domain = }')
@@ -238,7 +238,7 @@ def pick_taxi():
     return color, brand, phone
 
 
-def make_booking_taxi(info, db_path):
+def make_booking_taxi(info):
     # Check 1. 'departure', 'destination'
     place_slots = {'departure': None, 'destination': None}
 
@@ -253,7 +253,7 @@ def make_booking_taxi(info, db_path):
     for slot in place_slots:
         place = info[slot]
         for domain in ['restaurant', 'hotel', 'attraction']:
-            if venue := query_venue_by_name_or_address(domain, place, f"{db_path}/{domain}-dbase.db"):
+            if venue := query_venue_by_name_or_address(domain, place):
                 place_slots[slot] = venue
                 break
         if not place_slots[slot]:
@@ -315,51 +315,51 @@ def extract_book_info(text):
     return info
 
 
-def book_restaurant(db_path, text):
+def book_restaurant(text):
     '''Expected: name: pizza hut city centre, people: 2, day: saturday, time: 18:00'''
-    logger.info(f"book_restaurant: text = {text} db_path = {db_path}")
+    logger.info(f"book_restaurant: text = {text}")
     info = extract_book_info(text)
     logger.info(f"book_restaurant: info = {info}")
     #input("Press Enter to continue...")
-    flag, msg = make_booking_db('restaurant', info, db_path)
+    flag, msg = make_booking_db('restaurant', info)
     logger.info(f"book_restaurant: flag = {flag}, msg = {msg}")
     if flag:
         book_slots['restaurant'] = info
     return msg
 
 
-def book_hotel(db_path, text):
+def book_hotel(text):
     '''Expected: name: sleeperz hotel, people: 2, stay: 2'''
-    logger.info(f"book_hotel: text = {text} db_path = {db_path}")
+    logger.info(f"book_hotel: text = {text}")
     info = extract_book_info(text)
     logger.info(f"book_hotel: info = {info}")
-    flag, msg = make_booking_db('hotel', info, db_path)
+    flag, msg = make_booking_db('hotel', info)
     logger.info(f"book_hotel: flag = {flag}, msg = {msg}")
     if flag:
         book_slots['hotel'] = info        
     return msg
 
 
-def book_train(db_path, text):
+def book_train(text):
     '''Expected: train id: tr1234, ticket: 1'''
-    logger.info(f"book_train: text = {text} db_path = {db_path}")
+    logger.info(f"book_train: text = {text}")
     info = extract_book_info(text)
 
     logger.info(f"book_train: info = {info}")
-    flag, msg = make_booking_db('train', info, db_path)
+    flag, msg = make_booking_db('train', info)
     logger.info(f"book_train: flag = {flag}, msg = {msg}")
     if flag:
         book_slots['train'] = info        
     return msg
 
 
-def book_taxi(db_path, text):
+def book_taxi(text):
     '''Expected: departure: xx, destination: xx, leave: xx, arrive: xx'''
-    logger.info(f"book_taxi: text = {text} db_path = {db_path}")
+    logger.info(f"book_taxi: text = {text}")
     info = extract_book_info(text)
 
     logger.info(f"book_taxi: info = {info}")
-    flag, msg = make_booking_taxi(info, db_path)
+    flag, msg = make_booking_taxi(info)
     logger.info(f"book_taxi: flag = {flag}, msg = {msg}")
     if flag:
         book_slots['taxi'] = info        

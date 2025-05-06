@@ -10,7 +10,7 @@ from langchain.schema import LLMResult
 import tenacity
 
 from dialogue_systems.xuetaldsys.booking import make_booking_db, make_booking_taxi
-from dialogue_systems.xuetaldsys.utils import tenacity_retry_log
+from dialogue_systems.xuetaldsys.utils import DB_PATH, tenacity_retry_log
 
 import logging
 
@@ -110,11 +110,11 @@ The AI Assistant can only make a reservation if the restaurant name and people, 
 dsys_logs = []
 
 
-def prepare_query_db_functions(domain, db_path):
+def prepare_query_db_functions(domain, db_path=DB_PATH):
 
     global dsys_logs
 
-    def query_db(sql, table, db_path):
+    def query_db(sql, table=None, db_path=DB_PATH):
         # if 'SELECT *' in sql:
         #     return "It's not allowed to use `SELECT *` to query all columns at the same time. You must query only the columns that are needed."
         if table is None:
@@ -183,9 +183,9 @@ def prepare_query_db_functions(domain, db_path):
 
 
     def get_table_info(domain, db_path):
-        logger.info(f"Getting table info for {domain} from {db_path}")
+        logger.info(f"Getting table info for {domain} from db_path: {db_path} DB_PATH = {DB_PATH}")
         db = SQLDatabase.from_uri(
-            database_uri=f'sqlite:///{db_path}',
+            database_uri=f'sqlite:///{DB_PATH}',
             include_tables=[domain],
             sample_rows_in_table_info=2,
         )
@@ -201,37 +201,40 @@ def prepare_query_db_functions(domain, db_path):
         param_desc_temp = f'The SQL statement to query the {domain} table.'
         
         schema = {
-            'name': name,
-            'description': func_desc_temp.format(table_info=table_info, domain=domain),
-            'parameters': {
-                'type': 'object',
-                'properties': {
-                    'sql': {
-                        'type': 'string',
-                        'description': param_desc_temp.format(domain=domain),
-                    }
-                },
-                'required': ['sql'],
+            "type": "function",
+            "function": {             
+                'name': name,
+                'description': func_desc_temp.format(table_info=table_info, domain=domain),
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'sql': {
+                            'type': 'string',
+                            'description': param_desc_temp.format(domain=domain),
+                        }
+                    },
+                    'required': ['sql'],
+                }
             }
         }
         return schema
 
     assert domain in ['restaurant', 'hotel', 'attraction', 'train']
     name = f'query_{domain}s'  # query_restaurants, query_hotels, query_attractions, query_trains
-    function = partial(query_db, table=domain, db_path=f"{db_path}/{domain}-dbase.db")
-    table_info = get_table_info(domain, db_path=f"{db_path}/{domain}-dbase.db")
+    function = partial(query_db, table=domain)
+    table_info = get_table_info(domain, db_path)
     schema = make_schema(domain, name, table_info)
 
     return {'name': name, 'function': function, 'schema': schema}
 
 
-def prepare_book_functions(domain, db_path):
+def prepare_book_functions(domain):
     global dsys_logs    
     if domain == 'restaurant':
 
         def book_restaurant(name, people, day, time):
             info = {'name': name, 'people': str(people), 'day': day, 'time': time}
-            flag, msg = make_booking_db('restaurant', info, f"{db_path}/{domain}-dbase.db")
+            flag, msg = make_booking_db('restaurant', info)
             logger.info(f"Booking status: flag = {flag}, msg = {msg}")
 
             dsys_role = 'assistant' if dsys_logs[-1]['role'] == 'user' else 'user'
@@ -243,30 +246,33 @@ def prepare_book_functions(domain, db_path):
 
         name = 'book_restaurant'
         schema = {
-            'name': name,
-            'description': 'Book a restaurant with certain requirements.',
-            'parameters': {
-                'type': 'object',
-                'properties': {
-                    'name': {
-                        'type': 'string',
-                        'description': 'the name of the restaurant to book',
+            "type": "function",
+            "function": {             
+                'name': name,
+                'description': 'Book a restaurant with certain requirements.',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'name': {
+                            'type': 'string',
+                            'description': 'the name of the restaurant to book',
+                        },
+                        'people': {
+                            'type': 'integer',
+                            'description': 'the number of people',
+                        },
+                        'day': {
+                            'type': 'string',
+                            "enum": ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+                            'description': 'the day when the people go to the restaurant',
+                        },
+                        'time': {
+                            'type': 'string',
+                            'description': 'the time of the reservation',
+                        },
                     },
-                    'people': {
-                        'type': 'integer',
-                        'description': 'the number of people',
-                    },
-                    'day': {
-                        'type': 'string',
-                        "enum": ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
-                        'description': 'the day when the people go to the restaurant',
-                    },
-                    'time': {
-                        'type': 'string',
-                        'description': 'the time of the reservation',
-                    },
-                },
-                'required': ['name', 'people', 'day', 'time'],
+                    'required': ['name', 'people', 'day', 'time'],
+                }
             }
         }
         return {'name': name, 'function': book_restaurant, 'schema': schema}
@@ -275,7 +281,7 @@ def prepare_book_functions(domain, db_path):
 
         def book_hotel(name, people, day, stay):
             info = {'name': name, 'people': str(people), 'day': day, 'stay': str(stay)}
-            flag, msg = make_booking_db('hotel', info, f"{db_path}/{domain}-dbase.db")
+            flag, msg = make_booking_db('hotel', info)
             logger.info(f"Booking status: flag = {flag}, msg = {msg}")
 
             dsys_role = 'assistant' if dsys_logs[-1]['role'] == 'user' else 'user'
@@ -287,30 +293,33 @@ def prepare_book_functions(domain, db_path):
 
         name = 'book_hotel'
         schema = {
-            'name': name,
-            'description': 'Book a hotel with certain requirements.',
-            'parameters': {
-                'type': 'object',
-                'properties': {
-                    'name': {
-                        'type': 'string',
-                        'description': 'the name of the hotel to book',
+            "type": "function",
+            "function": {             
+                'name': name,
+                'description': 'Book a hotel with certain requirements.',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'name': {
+                            'type': 'string',
+                            'description': 'the name of the hotel to book',
+                        },
+                        'people': {
+                            'type': 'integer',
+                            'description': 'the number of people',
+                        },
+                        'day': {
+                            'type': 'string',
+                            "enum": ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+                            'description': 'the day when the reservation starts',
+                        },
+                        'stay': {
+                            'type': 'integer',
+                            'description': 'the number of days of the reservation',
+                        },
                     },
-                    'people': {
-                        'type': 'integer',
-                        'description': 'the number of people',
-                    },
-                    'day': {
-                        'type': 'string',
-                        "enum": ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
-                        'description': 'the day when the reservation starts',
-                    },
-                    'stay': {
-                        'type': 'integer',
-                        'description': 'the number of days of the reservation',
-                    },
-                },
-                'required': ['name', 'people', 'day', 'stay'],
+                    'required': ['name', 'people', 'day', 'stay'],
+                }
             }
         }
         return {'name': name, 'function': book_hotel, 'schema': schema}
@@ -319,7 +328,7 @@ def prepare_book_functions(domain, db_path):
 
         def buy_train_tickets(train_id, tickets):
             info = {'train id': train_id, 'tickets': str(tickets)}
-            flag, msg = make_booking_db('train', info, f"{db_path}/{domain}-dbase.db")
+            flag, msg = make_booking_db('train', info)
             logger.info(f"Booking status: flag = {flag}, msg = {msg}")
 
             dsys_role = 'assistant' if dsys_logs[-1]['role'] == 'user' else 'user'
@@ -330,21 +339,24 @@ def prepare_book_functions(domain, db_path):
 
         name = 'buy_train_tickets'
         schema = {
-            'name': name,
-            'description': 'Buy train tickets.',
-            'parameters': {
-                'type': 'object',
-                'properties': {
-                    'train_id': {
-                        'type': 'string',
-                        'description': 'the unique id of the train',
+            "type": "function",
+            "function": {             
+                'name': name,
+                'description': 'Buy train tickets.',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'train_id': {
+                            'type': 'string',
+                            'description': 'the unique id of the train',
+                        },
+                        'tickets': {
+                            'type': 'integer',
+                            'description': 'the number of tickets to buy',
+                        },
                     },
-                    'tickets': {
-                        'type': 'integer',
-                        'description': 'the number of tickets to buy',
-                    },
-                },
-                'required': ['train_id', 'tickets'],
+                    'required': ['train_id', 'tickets'],
+                }
             }
         }
         return {'name': name, 'function': buy_train_tickets, 'schema': schema}
@@ -357,7 +369,7 @@ def prepare_book_functions(domain, db_path):
                 info['leaveat'] = leaveat
             if arriveby:
                 info['arriveby'] = arriveby
-            flag, msg = make_booking_taxi(info, f"{db_path}")#/{domain}-dbase.db") Dont add -dbase.db for taxi
+            flag, msg = make_booking_taxi(info) #Dont add -dbase.db for taxi
             logger.info(f"Booking status: flag = {flag}, msg = {msg}")
 
             dsys_role = 'assistant' if dsys_logs[-1]['role'] == 'user' else 'user'
@@ -368,29 +380,32 @@ def prepare_book_functions(domain, db_path):
 
         name = 'book_taxi'
         schema = {
-            'name': name,
-            'description': 'Book a taxi with certain requirements.',
-            'parameters': {
-                'type': 'object',
-                'properties': {
-                    'departure': {
-                        'type': 'string',
-                        'description': 'the departure of the taxi',
+            "type": "function",
+            "function": {            
+                'name': name,
+                'description': 'Book a taxi with certain requirements.',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'departure': {
+                            'type': 'string',
+                            'description': 'the departure of the taxi',
+                        },
+                        'destination': {
+                            'type': 'string',
+                            'description': 'the destination of the taxi',
+                        },
+                        'leaveat': {
+                            'type': 'string',
+                            'description': 'the leave time of the taxi',
+                        },
+                        'arriveby': {
+                            'type': 'string',
+                            'description': 'the arrive time of the taxi',
+                        },
                     },
-                    'destination': {
-                        'type': 'string',
-                        'description': 'the destination of the taxi',
-                    },
-                    'leaveat': {
-                        'type': 'string',
-                        'description': 'the leave time of the taxi',
-                    },
-                    'arriveby': {
-                        'type': 'string',
-                        'description': 'the arrive time of the taxi',
-                    },
-                },
-                'required': ['departure', 'destination'],
+                    'required': ['departure', 'destination'],
+                }
             }
         }
         return {'name': name, 'function': book_taxi, 'schema': schema}
@@ -402,23 +417,24 @@ def prepare_book_functions(domain, db_path):
 class FuncAgent:
 
     def __init__(self, model, player_llm, db_path):
-        self.model = model
+        self.model = model #model is nothing model_id in other systems
         self.player_llm = player_llm
         self.db_path = db_path
         self.turn_idx = 0
         self.messages = [{"role": "system", "content": system_prompt}]
+        self.prompt_updt_func_name = None
         self.func_map = {}
         self.schema_map = {}
         self.schemas = []
         self.factories = [
-            partial(prepare_query_db_functions, domain='restaurant', db_path=self.db_path),
-            partial(prepare_book_functions, domain='restaurant', db_path=self.db_path),
-            partial(prepare_query_db_functions, domain='hotel', db_path=self.db_path),
-            partial(prepare_book_functions, domain='hotel', db_path=self.db_path),
-            partial(prepare_query_db_functions, domain='attraction', db_path=self.db_path),
-            partial(prepare_query_db_functions, domain='train', db_path=self.db_path),
-            partial(prepare_book_functions, domain='train', db_path=self.db_path),
-            partial(prepare_book_functions, domain='taxi', db_path=self.db_path),
+            partial(prepare_query_db_functions, domain='restaurant'),
+            partial(prepare_book_functions, domain='restaurant'),
+            partial(prepare_query_db_functions, domain='hotel'),
+            partial(prepare_book_functions, domain='hotel'),
+            partial(prepare_query_db_functions, domain='attraction'),
+            partial(prepare_query_db_functions, domain='train'),
+            partial(prepare_book_functions, domain='train'),
+            partial(prepare_book_functions, domain='taxi'),
         ]
         for factory in self.factories:
             result = factory()
@@ -436,10 +452,10 @@ class FuncAgent:
 
     def chat(self, messages, current_turn, callbacks: list[LLMResult] =[]):
 
-        prompt, raw_answer, answer = self.player_llm(messages, current_turn, self.schemas)
+        prompt, raw_answer, answer = self.player_llm(messages, current_turn, self.schemas, None)
 
         dsys_role = 'assistant' if dsys_logs[-1]['role'] == 'user' else 'user'        
-        dsys_logs.append({'role': dsys_role, 'content': {'prompt': prompt, 'raw_answer': raw_answer,
+        dsys_logs.append({'role': dsys_role, 'content': {'prompt': prompt, 'raw_answer': raw_answer['message_full'],
                                                                     'answer': f"Agent Follow-up: {answer}"}})        
         logger.info(f"FuncAgent chat: raw_answer: {raw_answer}, answer: {answer}")
 
@@ -450,40 +466,32 @@ class FuncAgent:
             if hasattr(callable, 'on_llm_end'):
                 callback.on_llm_end(reponse)
         '''
-        return answer
+        #Since clemfw returns answer as a string, we need to convert it to a dict
+        try:
+            answer = json.loads(answer)
+            if isinstance(answer, dict):
+                answer = [answer]
+        except Exception as error:
+            logger.error(f"Error in converting answer to dict: {error}")
+            answer = answer.strip()
+
+        return raw_answer['tool_calls'], answer
 
 
-
-    def chat_old(self, messages, callbacks: list[LLMResult] =[]):
-
-        '''
-        completion = openai.ChatCompletion.create(
-            model=self.model,
-            temperature=0,
-            messages=messages,
-            functions=self.schemas,
-            request_timeout=10,
-        )
-        '''
-        completion = openai.OpenAI(api_key=openai.api_key).chat.completions.create(model=self.model,
-                                                                                   messages=messages,
-                                                                                   temperature=0,
-                                                                                   functions=self.schemas)
-
-        llm_output = {'model_name': completion.model, 'token_usage': completion.usage.total_tokens}
-        reponse = LLMResult(generations=[], llm_output=llm_output)
-        for callback in callbacks:
-            if hasattr(callable, 'on_llm_end'):
-                callback.on_llm_end(reponse)
-
-        return completion.choices[0].message
+    def ishfmodel(self):
+        #This response formatting is not helping, hence disabled this
+        #return False
+        return True if any(model in self.model for model in ["Qwen", "Llama"]) else False        
 
     def __call__(self, user_utter, current_turn, callbacks=[]):
         self.turn_idx += 1
 
         global dsys_logs
         dsys_logs = [{'role': 'user', 'content': f"User Input: {user_utter}"}]
+        # No need to add tool content here as this is user response but not a function call response
         self.messages.append({'role': 'user', 'content': user_utter})
+
+
         num_turns = 0
         while True:
             if num_turns > 3:
@@ -492,80 +500,106 @@ class FuncAgent:
 
                 return self.messages[-1]['content'], dsys_logs
 
-            msg = self.chat(self.messages, current_turn, callbacks=callbacks)
-            logger.info(f"FuncAgent chat response: {msg}, {type(msg)}")
+            raw_answer, msg = self.chat(self.messages, current_turn, callbacks=callbacks)
+            logger.info(f"FuncAgent chat response: {msg}, {raw_answer} {type(msg)}")
             
             # Assistant Response
             #if msg.content is not None:
-            if not isinstance(msg, openai.types.chat.chat_completion_message.FunctionCall) and not isinstance(msg, openai.types.chat.chat_completion_message_tool_call.ChatCompletionMessageToolCall):
+            #if not isinstance(msg, openai.types.chat.chat_completion_message.FunctionCall) and not isinstance(msg, openai.types.chat.chat_completion_message_tool_call.ChatCompletionMessageToolCall):
             #if not isinstance(msg, openai.types.chat.chat_completion_message_tool_call.ChatCompletionMessageToolCall):
 
-                if isinstance(msg, str):
-                    utter = msg.strip()#msg.content.strip()
+            if isinstance(msg, str):
+                utter = msg.strip()#msg.content.strip()
 
-                    dsys_role = 'assistant' if dsys_logs[-1]['role'] == 'user' else 'user'
-                    dsys_logs.append({'role': dsys_role, 'content': f"Agent Follow-up: {msg}"})
+                dsys_role = 'assistant' if dsys_logs[-1]['role'] == 'user' else 'user'
+                dsys_logs.append({'role': dsys_role, 'content': f"Agent Follow-up: {msg}"})
 
-                    for handler in callbacks:
-                        if hasattr(handler, 'on_turn_end'):
-                            utter = handler.on_turn_end(utter, self.turn_idx)
+                for handler in callbacks:
+                    if hasattr(handler, 'on_turn_end'):
+                        utter = handler.on_turn_end(utter, self.turn_idx)
 
-                    logger.info(f"FuncAgent returning utter: {utter}")
-                    self.messages.append({'role': 'assistant', 'content': utter})
-                    return utter, dsys_logs
+                logger.info(f"FuncAgent returning utter: {utter}")
+                #TODO: Check if this needs further modifications for HF models - Tool schema style response
+                self.messages.append({'role': 'assistant', 'content': utter})
+
+                dsys_response = {"status": "follow-up", "details": utter}
+                return dsys_response, dsys_logs
             
+            if not self.ishfmodel():
+                self.messages.append(raw_answer)
             # Function calling
-            logger.info(f"FuncAgent: calling parse_function_call")
-            succeed, check_msg, name, args = self.parse_function_call(msg)
+            for msg_toolcall in msg:
+                logger.info(f"FuncAgent: calling parse_function_call")
 
-            dsys_role = 'assistant' if dsys_logs[-1]['role'] == 'user' else 'user'            
-            dsys_logs.append({'role': dsys_role, 'content': f"Function-call: name: {name}, args: {args}"}) 
+                succeed, check_msg, name, args = self.parse_function_call(msg_toolcall)
 
-            #self.messages.append({'role': "assistant", 'content': f"Function-call: name: {name}, args: {args}"})           
-            self.messages.append({'role': "assistant", 'tool_calls': [msg]})
 
-            logger.info(f"succeed: {succeed}, check_msg: {check_msg}, name: {name}, args: {args}")
-            if succeed:
-                #print()
-                #print('Function: ' + MAG_COLOR + f'{name}' + RESET_COLOR)
-                #print('Arguments: ' + GREEN_COLOR + f'{args}' + RESET_COLOR)
-                func = self.func_map[name]
-                logger.info(f"Calling the function: {func}, {args}")
-                result, domain, details = func(**args)
-                logger.info(f"Function result: {result} domain: {domain} details = {details}")
-                if details:
-                    if domain not in self.genslots:
-                        self.genslots[domain] = {}
-                    self.genslots[domain].update(details)
-                    logger.info(f"Updated genslots: {self.genslots}")
+                if self.ishfmodel():
+                    #prompt_updt_func_name - function name and args that are to be used in the prompt list
+                    tool_content = [{"type": "function", "function": {"name": name, "arguments": args}}]
+                    self.messages.append({'role': "assistant",  "tool_calls": tool_content})
+                #else:
+                    #self.messages.append(raw_answer)
 
-            else:
-                #print()
-                #print('Function parsing error:')
-                #print(f'function_call: {msg.function_call}')
-                #print(check_msg)
-                result = check_msg
-                logger.info(f"After Function parsing error result: {result}")
+                dsys_role = 'assistant' if dsys_logs[-1]['role'] == 'user' else 'user'            
+                dsys_logs.append({'role': dsys_role, 'content': f"Function-call: name: {name}, args: {args}"}) 
 
-            #print('Result: ' + CYAN_COLOR + f'{result}' + RESET_COLOR)
-            logger.info(f"Result = {result}")
+                #self.messages.append({'role': "assistant", 'content': f"Function-call: name: {name}, args: {args}"})           
+                #This was workking until replaced with below tool calls code - may not be necessary here
+                #self.messages.append({'role': "assistant", 'tool_calls': [msg]})
 
-            dsys_role = 'assistant' if dsys_logs[-1]['role'] == 'user' else 'user'            
-            dsys_logs.append({'role': dsys_role, 'content': f"Function-Call Result: {result}"})
-            '''
-            if self.messages[-1]["role"] == "function":
-            #if self.messages[-1]["role"] == "tool":
-                self.messages[-1]['name'] = name
-                self.messages[-1]["content"] = result
-            else:
-                self.messages.append({'role': 'function', 'name': name, 'content': result})
-                #self.messages.append({"role": "tool", "tool_call_id": msg.id, "content":result})
-            '''
-            #msgrole = "assistant" if self.messages[-1]["role"] == "user" else "user"
-            if isinstance(msg, dict):
-                self.messages.append({'role': "tool",  'content': result})
-            else:
-                self.messages.append({'role': "tool",  "tool_call_id": msg.id, 'content': result})
+                logger.info(f"succeed: {succeed}, check_msg: {check_msg}, name: {name}, args: {args}")
+                if succeed:
+                    #print()
+                    #print('Function: ' + MAG_COLOR + f'{name}' + RESET_COLOR)
+                    #print('Arguments: ' + GREEN_COLOR + f'{args}' + RESET_COLOR)
+                    func = self.func_map[name]
+                    logger.info(f"Calling the function: {func}, {args}")
+
+                    result, domain, details = func(**args)
+                    logger.info(f"Function result: {result} domain: {domain} details = {details}")
+                    if details:
+                        if domain not in self.genslots:
+                            self.genslots[domain] = {}
+                        self.genslots[domain].update(details)
+                        logger.info(f"Updated genslots: {self.genslots}")
+
+                else:
+                    #print()
+                    #print('Function parsing error:')
+                    #print(f'function_call: {msg.function_call}')
+                    #print(check_msg)
+                    result = check_msg
+                    logger.info(f"After Function parsing error result: {result}")            
+
+                #print('Result: ' + CYAN_COLOR + f'{result}' + RESET_COLOR)
+                logger.info(f"Result = {result}")
+
+                dsys_role = 'assistant' if dsys_logs[-1]['role'] == 'user' else 'user'            
+                dsys_logs.append({'role': dsys_role, 'content': f"Function-Call Result: {result}"})
+                '''
+                if self.messages[-1]["role"] == "function":
+                #if self.messages[-1]["role"] == "tool":
+                    self.messages[-1]['name'] = name
+                    self.messages[-1]["content"] = result
+                else:
+                    self.messages.append({'role': 'function', 'name': name, 'content': result})
+                    #self.messages.append({"role": "tool", "tool_call_id": msg.id, "content":result})
+                '''
+                #msgrole = "assistant" if self.messages[-1]["role"] == "user" else "user"
+
+                '''
+                #This was working until replaced with below tool calls code
+                if isinstance(msg, dict):
+                    self.messages.append({'role': "tool",  'content': result})
+                else:
+                    self.messages.append({'role': "tool",  "tool_call_id": msg.id, 'content': result})
+                '''
+                if self.ishfmodel():
+                    tool_content = {"name": name, "content": result}
+                    self.messages.append({'role': 'tool', 'content': tool_content})
+                else:
+                    self.messages.append({'role': 'tool', "tool_call_id": msg_toolcall['id'], 'content': str(result)})                
             num_turns += 1
 
     def parse_function_call(self, function_call):
@@ -633,11 +667,11 @@ class FuncAgent:
             args['sql'] = re.sub(r"name = '(.*'.*)'", r'name = "\1"', args['sql'])
 
         schema = self.schema_map[name]
-        if error_args := [arg for arg in args if arg not in schema['parameters']['properties']]:
+        if error_args := [arg for arg in args if arg not in schema['function']['parameters']['properties']]:
             error_args_str = ', '.join(f'"{x}"' for x in error_args)
-            right_args_str = ', '.join(f'"{x}"' for x in schema['parameters']['properties'])
+            right_args_str = ', '.join(f'"{x}"' for x in schema['function']['parameters']['properties'])
             return False, f'Parameters {error_args_str} are not valid. Please provide valid parameters {right_args_str}.', None, None
-        elif missing_args := [arg for arg in schema['parameters']['required'] if arg not in args]:
+        elif missing_args := [arg for arg in schema['function']['parameters']['required'] if arg not in args]:
             args_str = ', '.join(f'"{x}"' for x in missing_args)
             return False,  f'The required parameters {args_str} are missing.', None, None
         
