@@ -6,9 +6,9 @@ import json
 #from clemgame import get_logger
 from utils import cleanupanswer, funcdatasanitycheck, preparemodelresponse
 from dialogue_systems.modllmdsys.players import ModLLMSpeaker
-from dialogue_systems.modprogdsys.intentdetector import IntentDetector
-from dialogue_systems.modprogdsys.slotextractor import SlotExtractor
-from dialogue_systems.modprogdsys.followupgenerator import FollowupGenerator
+from dialogue_systems.modllmdsys.intentdetector import IntentDetector
+from dialogue_systems.modllmdsys.slotextractor import SlotExtractor
+from dialogue_systems.modllmdsys.followupgenerator import FollowupGenerator
 from dialogue_systems.modprogdsys.dbqueryformatter import DBQueryFormatter
 from dialogue_systems.modprogdsys.bookingformatter import BookingFormatter
 from processfunccallresp import ProcessFuncCallResp
@@ -32,6 +32,8 @@ class ModLLMDM:
         self.max_reprobe = 3
         self.cur_reprobe = 0
         self.func_name = None
+        self.tool_call_id = None
+        self.tool_calls_list = []        
 
 
         self.respformat = resp_json_schema#["schema"]
@@ -448,7 +450,8 @@ class ModLLMDM:
                 #don't use message - it is in str format - we need dict format
                 self.player_b.history.append({"role": role, "tool_calls": data})
             else:
-                self.player_b.history.append({"role": role, "content": message})
+                #self.player_b.history.append({"role": role, "content": message})
+                self.player_b.history.append(data)
 
         elif role == "user":
             if subsystem is None:
@@ -479,8 +482,15 @@ class ModLLMDM:
                 self.player_b.history[-1]["content"] += "\n\n" + data['content']
                 self.player_b.history[-1]["content"] = self.player_b.history[-1]["content"].strip()           
             else:
+                if self.ishfmodel():                
+                    #self.player_b.history.append({"role": role, "name": data["name"], "content": data["content"]}) 
+                    tool_content = {"name": data["name"], "content": data["content"]}   
+                    self.player_b.history.append({"role": role, 'content': tool_content})            
+                else:
+                    self.player_b.history.append({"role": role, "tool_call_id": data["tool_call_id"], 'content': data["content"]})
+
                 #don't use messages - it is in str format. We need dict and the values of name, content
-                self.player_b.history.append({"role": role, "name": data["name"], "content": data["content"]})  
+                #self.player_b.history.append({"role": role, "name": data["name"], "content": data["content"]})  
 
 
 
@@ -554,7 +564,129 @@ class ModLLMDM:
     def ishfmodel(self):
         #This response formatting is not helping, hence disabled this
         #return False
-        return True if any(model in self.model_name for model in ["Qwen", "Llama"]) else False        
+        return True if any(model in self.model_name for model in ["Qwen", "Llama"]) else False     
+
+
+    def _parse_model_response(self, answer):
+        result = cleanupanswer(answer)
+        logger.info(f"Player B: Subsystem Flow response after cleaning:\n{result}, {type(result)}")
+        if isinstance(result, json.decoder.JSONDecodeError):
+            self.promptlogs.append({"role": "assistant",
+                                        "content": f"Failure in parsing the model response before processing: {str(result)}"})
+            return self.promptlogs, None, str(result)
+
+        if isinstance(result, dict):
+            result = [result]
+
+        if isinstance(result, list):
+            if len(result) > 1:
+                self.tool_calls_list = result[1:]     
+
+        return None, None, result[0]   
+
+
+
+    def _parse_next_subsystem(self, result):
+        next_subsystem = None
+        taskinput = None
+        taskcontext = None
+        if isinstance(result, dict):
+            result_func, error = funcdatasanitycheck(result)
+
+            if error:
+                return self.promptlogs, None, error
+
+            self.func_name = result_func.get("name", None)
+            self.func_arguments = result_func.get("arguments", None)
+            logger.info(f"Function Name: {self.func_name}, arguments: {self.func_arguments}")
+            if self.func_name == "processnextsubsystem":
+                if self.func_arguments:
+                    next_subsystem = self.func_arguments.get("next_subsystem", None)
+                    taskinput = self.func_arguments.get("input_data", None)
+                    taskcontext = self.func_arguments.get("dialogue_history", None)
+                    #num_process_ssystem += 1
+
+                logger.info(f"next_subsystem: {next_subsystem}, taskinput: {taskinput}, taskcontext: {taskcontext}")
+
+            if self.ishfmodel() and self.func_name and self.func_arguments:
+                #This will be used in next turn to append with the role: tool
+                tool_content = [{"type": "function", "function": {"name": self.func_name, "arguments": self.func_arguments}}]
+                self._append_utterance(None, tool_content, "assistant")
+            else:
+                #self._append_utterance(None, result, "assistant")
+                self.tool_call_id = result['id']
+
+            return None, None, {"next_ss": next_subsystem, "taskinput": taskinput, "taskcontext": taskcontext}
+
+        else:
+            self.func_name = None
+            self.func_arguments = None
+            next_subsystem = None
+            return self.promptlogs, None, f"Function name and arguments are missing in the model response. Cannot continue processing."
+
+    def _process_next_sub_system(self, next_subsystem, taskinput, taskcontext, current_turn, subsystem_handlers):
+
+        next_subsystem = next_subsystem.lower()
+        #taskinput = result.get("input_data", None)
+        logger.info(f"Player B: Next SubSystem Input\n{taskinput}")
+        self.promptlogs.append({"role": f"Input to {next_subsystem}", 'content': f"Input to {next_subsystem} sub-system:\n{json.dumps(taskinput)}"})           
+
+        #taskcontext = result.get("dialogue_history", None)
+        logger.info(f"Player B: Next SubSystem Dialogue History\n{taskinput}")
+        self.promptlogs.append({"role": f"DH to {next_subsystem}", 'content': f"Input to {next_subsystem} sub-system:\n{json.dumps(taskcontext)}"})           
+
+
+        status, use_subsystem = self._validate_subsystem(next_subsystem)
+        logger.info(f"Player B: Subsystem Validation: status - {status}, use_subsystem - {use_subsystem}")
+
+        if not status:
+            if use_subsystem == "reprobe":
+                # Probe the LLM one more time
+                # TODO: Do we need to add any message to the LLM to behave itself?
+                # self._append_utterance(None, answer, "user")
+                logger.error(
+                    "No matching sub-system found for the next task. Probing the LLM one more time."
+                )
+                self._append_utterance(
+                    "No matching sub-system found for the next task.", None, "user"
+                )                        
+                return self.promptlogs, None, "reprobe"
+            else:
+                errormsg = f"Invalid Subsystem: {next_subsystem}. Cannot continue processing."
+                logger.error(errormsg)
+                #Game Master should treat this as failure and abort the game
+                self.promptlogs.append({"role": "assistant", "content": errormsg})
+                return self.promptlogs, None, errormsg
+
+        '''
+        usetaskinput = self._validate_subsystem_input(next_subsystem, taskinput)
+
+        if usetaskinput is None:
+            errormsg = f"Invalid Subsystem({use_subsystem}) InputData {taskinput}. Cannot continue processing."
+            logger.error(errormsg)
+            #Game Master should treat this as failure and abort the game
+            return self.promptlogs, None, errormsg
+        '''
+        usetaskinput = {"input_data": taskinput, "dialogue_history": taskcontext}
+        prompt, raw_response, raw_answer_ss, ss_answer = subsystem_handlers[use_subsystem](usetaskinput, current_turn)
+        self.promptlogs.append({"role": f"{use_subsystem}", 'content': {'prompt': prompt, 'raw_answer': raw_response,
+                                                            'answer': f"Sub-system({use_subsystem}) response: {ss_answer}"}})                
+        logger.info(f"{use_subsystem} response appending to Player B\n{ss_answer}")
+        self._append_utterance(use_subsystem, ss_answer, "user")
+
+
+        #Validate Sub-System Response
+        sub_sys_response = self._validate_subsystem_output(use_subsystem, ss_answer)
+
+        if sub_sys_response is None:
+            errormsg = f"Invalid Subsystem({use_subsystem}) Output {ss_answer}. Cannot continue processing."
+            logger.error(errormsg)
+            #Game Master should treat this as failure and abort the game
+            return self.promptlogs, None, errormsg
+
+        #Adding sleep to reduce the frequencey of calls to the LLM
+        time.sleep(0.5)
+        return None, None, sub_sys_response
 
 
     def run(self, utterance, current_turn: int) -> str:
@@ -588,125 +720,96 @@ class ModLLMDM:
                 #Game Master should treat this as failure and abort the game
                 self.promptlogs.append({"role": "assistant", "content": f"{errormsg}"})
                 return self.promptlogs, None, errormsg
+
             if self.ishfmodel():
                 tool_content = {"name": self.func_name, "content": utterance}
                 self._append_utterance(None, tool_content, "tool")
 
             else:
-                self._append_utterance(None, utterance, "user")
+                #self._append_utterance(None, utterance, "user")
+                tool_content = {"content": utterance, 'tool_call_id': self.tool_call_id}
+                self._append_utterance(None, tool_content, "tool")
+                self.tool_call_id = None                
+
+            if self.tool_calls_list:
+                answer_cleanup = self.tool_calls_list[0]
+                self.tool_calls_list = self.tool_calls_list[1:]
+
+                self.promptlogs.append({"role": "assistant", "content": f"model response before processing: {answer_cleanup}"})
+
+                error_logs, parse_status, data = self._parse_next_subsystem(answer_cleanup)
+                if error_logs:
+                    return self.promptlogs, None, data
+
+                num_process_ssystem += 1
+                logger.info(f"Player B: Next SubSystem: {data}")
+
+                next_subsystem = data.get("next_ss", None)
+                taskinput = data.get("taskinput", None)
+                taskcontext = data.get("taskcontext", None)
+
+                if next_subsystem:
+                    error_logs, process_status, sub_sys_response = self._process_next_sub_system(next_subsystem, taskinput, taskcontext, current_turn, subsystem_handlers)
+                    if error_logs:
+                        if sub_sys_response == "reprobe":
+                            continue
+                        else:
+                            return self.promptlogs, None, sub_sys_response
+                else:
+                    # Return the LLM response to user
+                    use_data, error = preparemodelresponse(self.func_name, self.func_arguments)
+                    if error:
+                        logger.error(f"Failure in model response processing:\n{error}")
+                        return self.promptlogs, None, error
+
+                    logger.info(f"Returning the LLM response to the user\n{use_data}")
+                    llm_response, error, ret_func_data = self.processresp.run(use_data, "modular_llm")
+                    if error:
+                        self.promptlogs.append({"role": "assistant", "content": f"error while parsing the data: {error}"})
+
+                    self.promptlogs.append({'role': "modllm", 'content': {'prompt': "ToolCall", 'raw_answer': answer_cleanup,
+                                                                        'answer': llm_response}})
+
+                    return self.promptlogs, answer_cleanup, llm_response   
+
 
             prompt, raw_answer, answer = self.player_b(
                 self.player_b.history, current_turn, self.tool_schema, None)
             logger.info(f"Player B: Subsystem Flow response\n{answer}")
+
+            if not self.ishfmodel():
+                self._append_utterance(None, raw_answer['tool_calls'], "assistant")
+
             self.promptlogs.append({"role": "assistant", "content": f"model response before processing: {answer}"})
-            result = cleanupanswer(answer)
-            logger.info(f"Player B: Subsystem Flow response after cleaning:\n{result}, {type(result)}")
-            if isinstance(result, json.decoder.JSONDecodeError):
-                self.promptlogs.append({"role": "assistant", "content": f"Failure in parsing the model response before processing: {str(result)}"})
-                return self.promptlogs, None, str(result)
+
+            error_logs, parse_status, result = self._parse_model_response(answer)
+            if error_logs:
+                return self.promptlogs, None, result
 
 
             self.promptlogs.append({'role': "modllm", 'content': {'prompt': prompt, 'raw_answer': raw_answer,
                                                                     'answer': result}})
             #self._append_utterance(None, result, "assistant")
 
-            next_subsystem = None
-            taskinput = None
-            taskcontext = None
-            if isinstance(result, dict):
-                result, error = funcdatasanitycheck(result)
+            error_logs, parse_status, data = self._parse_next_subsystem(result)
+            if error_logs:
+                return self.promptlogs, None, data
 
-                if error:
-                    return self.promptlogs, None, error
+            num_process_ssystem += 1
+            logger.info(f"Player B: Next SubSystem: {data}")
 
-                self.func_name = result.get("name", None)
-                self.func_arguments = result.get("arguments", None)
-                logger.info(f"Function Name: {self.func_name}, arguments: {self.func_arguments}")
-                if self.func_name == "processnextsubsystem":
-                    if self.func_arguments:
-                        next_subsystem = self.func_arguments.get("next_subsystem", None)
-                        taskinput = self.func_arguments.get("input_data", None)
-                        taskcontext = self.func_arguments.get("dialogue_history", None)
-                        num_process_ssystem += 1
+            next_subsystem = data.get("next_ss", None)
+            taskinput = data.get("taskinput", None)
+            taskcontext = data.get("taskcontext", None)
 
-                    logger.info(f"next_subsystem: {next_subsystem}, taskinput: {taskinput}, taskcontext: {taskcontext}")
-
-                if self.ishfmodel() and self.func_name and self.func_arguments:
-                    #This will be used in next turn to append with the role: tool
-                    tool_content = [{"type": "function", "function": {"name": self.func_name, "arguments": self.func_arguments}}]
-                    self._append_utterance(None, tool_content, "assistant")
-                else:
-                    self._append_utterance(None, result, "assistant")
-
-
-            else:
-                self.func_name = None
-                self.func_arguments = None
-                next_subsystem = None
-                return self.promptlogs, None, f"Function name and arguments are missing in the model response. Cannot continue processing."
-
-            logger.info(f"Player B: Next SubSystem: {next_subsystem}")
             if next_subsystem:
-                next_subsystem = next_subsystem.lower()
-                #taskinput = result.get("input_data", None)
-                logger.info(f"Player B: Next SubSystem Input\n{taskinput}")
-                self.promptlogs.append({"role": f"Input to {next_subsystem}", 'content': f"Input to {next_subsystem} sub-system:\n{json.dumps(taskinput)}"})           
-
-                #taskcontext = result.get("dialogue_history", None)
-                logger.info(f"Player B: Next SubSystem Dialogue History\n{taskinput}")
-                self.promptlogs.append({"role": f"DH to {next_subsystem}", 'content': f"Input to {next_subsystem} sub-system:\n{json.dumps(taskcontext)}"})           
-
-
-                status, use_subsystem = self._validate_subsystem(next_subsystem)
-                logger.info(f"Player B: Subsystem Validation: status - {status}, use_subsystem - {use_subsystem}")
-
-                if not status:
-                    if use_subsystem == "reprobe":
-                        # Probe the LLM one more time
-                        # TODO: Do we need to add any message to the LLM to behave itself?
-                        # self._append_utterance(None, answer, "user")
-                        logger.error(
-                            "No matching sub-system found for the next task. Probing the LLM one more time."
-                        )
-                        self._append_utterance(
-                            "No matching sub-system found for the next task.", None, "user"
-                        )                        
+                error_logs, process_status, sub_sys_response = self._process_next_sub_system(next_subsystem, taskinput,
+                                                                                             taskcontext, current_turn, subsystem_handlers)
+                if error_logs:
+                    if sub_sys_response == "reprobe":
                         continue
                     else:
-                        errormsg = f"Invalid Subsystem: {next_subsystem}. Cannot continue processing."
-                        logger.error(errormsg)
-                        #Game Master should treat this as failure and abort the game
-                        self.promptlogs.append({"role": "assistant", "content": errormsg})
-                        return self.promptlogs, None, errormsg
-
-                '''
-                usetaskinput = self._validate_subsystem_input(next_subsystem, taskinput)
-
-                if usetaskinput is None:
-                    errormsg = f"Invalid Subsystem({use_subsystem}) InputData {taskinput}. Cannot continue processing."
-                    logger.error(errormsg)
-                    #Game Master should treat this as failure and abort the game
-                    return self.promptlogs, None, errormsg
-                '''
-                usetaskinput = {"input_data": taskinput, "dialogue_history": taskcontext}
-                prompt, raw_response, raw_answer_ss, ss_answer = subsystem_handlers[use_subsystem](usetaskinput, current_turn)
-                self.promptlogs.append({"role": f"{use_subsystem}", 'content': {'prompt': prompt, 'raw_answer': raw_response,
-                                                                    'answer': f"Sub-system({use_subsystem}) response: {ss_answer}"}})                
-                logger.info(f"{use_subsystem} response appending to Player B\n{ss_answer}")
-                self._append_utterance(use_subsystem, ss_answer, "user")
-
-
-                #Validate Sub-System Response
-                sub_sys_response = self._validate_subsystem_output(use_subsystem, ss_answer)
-
-                if sub_sys_response is None:
-                    errormsg = f"Invalid Subsystem({use_subsystem}) Output {ss_answer}. Cannot continue processing."
-                    logger.error(errormsg)
-                    #Game Master should treat this as failure and abort the game
-                    return self.promptlogs, None, errormsg
-
-                #Adding sleep to reduce the frequencey of calls to the LLM
-                time.sleep(0.5)
+                        return self.promptlogs, None, sub_sys_response
             else:
                 # Return the LLM response to user
                 use_data, error = preparemodelresponse(self.func_name, self.func_arguments)
@@ -722,4 +825,4 @@ class ModLLMDM:
                 self.promptlogs.append({'role': "modllm", 'content': {'prompt': prompt, 'raw_answer': raw_answer,
                                                                     'answer': llm_response}})
 
-                return self.promptlogs, raw_answer, llm_response      
+                return self.promptlogs, raw_answer, llm_response   
