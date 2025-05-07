@@ -1,0 +1,9 @@
+{
+    "game_name": "progsynthesis",
+    "description": "Converting a natural language instructions to a program",
+    "main_game": "progsynthesis",
+    "players": "one",
+    "image": "none",
+    "languages": ["en"],
+    "benchmark": []
+  }
