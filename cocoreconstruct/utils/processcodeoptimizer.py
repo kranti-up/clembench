@@ -131,6 +131,7 @@ class CodeOptimizer:
         self.set_optimizer_prompt(optimizer_prompt)
 
     def get_player_type(self) -> str:
+        return "others"        
         if self.model is None:
             return None
 

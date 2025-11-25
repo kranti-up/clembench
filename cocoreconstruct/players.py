@@ -148,6 +148,7 @@ class InstructionGiver(Player):
             self.set_player_prompt(player_prompt)
 
     def get_player_type(self) -> str:
+        return "others"
         if self.model is None:
             return None
 
@@ -254,6 +255,7 @@ class InstructionFollower(Player):
         self.set_player_prompt(player_prompt)
 
     def get_player_type(self) -> str:
+        return "others"        
         if self.model is None:
             return None
 
