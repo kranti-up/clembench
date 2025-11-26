@@ -1,0 +1,11 @@
+{
+  "game_name": "cocooptimizer",
+  "description": "Function optimization task for the given instruction-code pairs",
+  "main_game": "cocooptimizer",
+  "players": 1,
+  "image": "none",
+  "languages": ["en"],
+  "benchmark": [],
+  "regression": "large",
+  "roles": ["Optimizer"]
+}
