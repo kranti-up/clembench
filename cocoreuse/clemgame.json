@@ -1,0 +1,11 @@
+{
+  "game_name": "cocoreuse",
+  "description": "Function reuse task for the given functions",
+  "main_game": "cocoreuse",
+  "players": 2,
+  "image": "none",
+  "languages": ["en"],
+  "benchmark": [],
+  "regression": "large",
+  "roles": ["Reuse"]
+}
