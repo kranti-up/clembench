@@ -1,0 +1,11 @@
+{
+  "game_name": "cocobots",
+  "description": "Collaborative grid construction task for two players.",
+  "main_game": "cocobots",
+  "players": 2,
+  "image": "none",
+  "languages": ["en"],
+  "benchmark": [],
+  "regression": "large",
+  "roles": ["Player", "Cobot"]
+}
