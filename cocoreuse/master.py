@@ -156,6 +156,7 @@ class CCBTSReuseMaster(DialogueGameMaster):
 
 
     def _on_before_game(self) -> None:
+        logger.info(f"Starting a new game, locations: {self.board_info['locations']}")
         """Initialise the dialogue history (firstlast specific)."""
         p1_data = f"grid_size: 8x8\nskill name: {self.board_info['combo_name']}\ncolors: {self.board_info['colors']}\nlocation: {self.board_info['locations']}\ntarget_grid:{self.player_a_goal}\ndifference_grid: None\nclarification: None"
         if self.player_a_type == "human" and self.use_diff_human_prompts:
@@ -411,7 +412,13 @@ class CCBTSReuseMaster(DialogueGameMaster):
 
     
     def _get_playerb_grid(self):
-        return None
+        if self.genboard is None:
+            return "None"
+
+        _, gen_occupied_cells = self.prepare_ascii_rep.get_ascii_representation_from_board_layers(self.genboard, self.board_info["size"])        
+        diff_grid = self.prepare_ascii_rep.get_layer_representation_diff(self.target_board_cells, gen_occupied_cells)
+        return diff_grid
+
 
 
     def _get_current_filled_grid(self):

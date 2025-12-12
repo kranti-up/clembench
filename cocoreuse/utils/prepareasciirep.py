@@ -276,6 +276,44 @@ class PrepareASCIIRep:
         occupied_cells = self._list_occupied_cells_with_details(board)
         return occupied_cells
 
+    def _list_occupied_cells_with_repeats(self, combo_name: str, colors: list, repeat_locations: list):
+        occupied_cells = {}
+        for location in repeat_locations:
+            row, col = location[0]-1, location[1]-1
+            if f"{row}:{col}" in occupied_cells:
+                print(f"Multiple objects at location {row},{col} for combo {combo_name}")
+                input()
+            occupied_cells[f"{row}:{col}"] = [(combo_name, f"{colors}")]
+        return occupied_cells
+    
+    def get_ascii_representation_rb(self, board_size: dict, gt_code: dict,  combo_name: str, colors: list, repeat_locations: list) -> str:
+        """Convert the ground truth code to an ASCII representation."""
+        if board_size is None or "rows" not in board_size or "cols" not in board_size:
+            logger.info(f"Board size is invalid, cannot generate ASCII representation.")
+            return None, None, None, None
+        if combo_name is None or combo_name == "":
+            logger.info(f"Combo name is invalid, cannot generate ASCII representation.")
+            return None, None, None, None
+        
+        if colors is None or not colors:
+            logger.info(f"Colors is None, cannot generate ASCII representation.")
+            return None, None, None, None
+        
+        if repeat_locations is None or not repeat_locations:
+            logger.info(f"Repeat locations is None, cannot generate ASCII representation.")
+            return None, None, None, None
+
+        board = self._execute_code(gt_code, board_size)
+        if board is None:
+            return None, None, None, None
+        
+        occupied_cells = self._list_occupied_cells_with_details(board)
+
+        occupied_cells_repeat = self._list_occupied_cells_with_repeats(combo_name, colors, repeat_locations)
+
+        layer_rep = self.get_layer_representation_rb_reuse(combo_name, colors, repeat_locations)
+        return layer_rep, board, occupied_cells, occupied_cells_repeat
+
     def get_ascii_representation(self, gt_code: dict, board_size: dict) -> str:
         """Convert the ground truth code to an ASCII representation."""
         board = self._execute_code(gt_code, board_size)
@@ -474,6 +512,29 @@ class PrepareASCIIRep:
         ascii_representation = "[\n" + ",\n".join(rows) + "\n]\n"
         return ascii_representation
     
+
+    def get_layer_representation_rb_reuse(self, combo_name: str, colors: list, repeat_locations: list):
+        # No stacking of the objects, so only one layer
+        layer_rep = "Grid levels (bottom to top):\n"
+        max_layers = 1
+
+        layers_info = {}
+        for layer in range(max_layers):
+            layers_info[layer+1] = []     
+            for loc in repeat_locations:
+                row = loc[0]
+                col = loc[1]
+                shape_info = {"shapes": f"[{combo_name}]", "colors": f"{colors}"}
+                use_key = f"row: {row}, col: {col}"
+                layers_info[layer+1].append(f"{use_key}: {shape_info}")
+
+        for layer in layers_info:
+            layer_rep += f"Level {layer}:\n"
+            for cell_info in layers_info[layer]:
+                layer_rep += f"\t{cell_info}\n"
+
+        return layer_rep
+
 
     def get_layer_representation(self, occupied_cells, optim=False):
         """Generate a layer-wise ASCII representation from the occupied cells."""

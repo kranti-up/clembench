@@ -27,16 +27,26 @@ class CCBTSOptimizerInstanceGenerator(GameInstanceGenerator):
 
 
 
-    def _prepare_prompts(self, variant: str, boardinfo, fill_labels) -> Dict[str, str]:
-
-        prompt_files = {
-            "prompt_a": f"resources/initial_prompts/{LANGUAGE}/initial_prompt_a.template",
-            "turn_prompt_a": f"resources/initial_prompts/{LANGUAGE}/turn_prompt_a.template",
-            "prompt_b": f"resources/initial_prompts/{LANGUAGE}/initial_prompt_b.template",
-            "turn_prompt_b": f"resources/initial_prompts/{LANGUAGE}/turn_prompt_b.template",
-            "prompt_a_human": f"resources/initial_prompts/{LANGUAGE}/initial_prompt_a_human.template",
-            "turn_prompt_a_human": f"resources/initial_prompts/{LANGUAGE}/turn_prompt_a_human.template",
-        }
+    def _prepare_prompts(self, board_type: str, variant: str, boardinfo, fill_labels) -> Dict[str, str]:
+        print(f"Preparing prompts..., board_type: {board_type}, variant: {variant}")
+        if variant == "reconstruct-multi_turn":
+            prompt_files = {
+                "prompt_a": f"resources/initial_prompts/{LANGUAGE}/initial_prompt_a.template",
+                "turn_prompt_a": f"resources/initial_prompts/{LANGUAGE}/turn_prompt_a.template",
+                "prompt_b": f"resources/initial_prompts/{LANGUAGE}/initial_prompt_b.template",
+                "turn_prompt_b": f"resources/initial_prompts/{LANGUAGE}/turn_prompt_b.template",
+                "prompt_a_human": f"resources/initial_prompts/{LANGUAGE}/initial_prompt_a_human.template",
+                "turn_prompt_a_human": f"resources/initial_prompts/{LANGUAGE}/turn_prompt_a_human.template",
+            }
+        elif board_type == "regular" and variant == "multi_turn":
+            prompt_files = {
+                "prompt_a": f"resources/initial_prompts/{LANGUAGE}/initial_prompt_a_rb.template",
+                "turn_prompt_a": f"resources/initial_prompts/{LANGUAGE}/turn_prompt_a_rb.template",
+                "prompt_b": f"resources/initial_prompts/{LANGUAGE}/initial_prompt_b_rb.template",
+                "turn_prompt_b": f"resources/initial_prompts/{LANGUAGE}/turn_prompt_b_rb.template",
+                "prompt_a_human": f"resources/initial_prompts/{LANGUAGE}/initial_prompt_a_human.template",
+                "turn_prompt_a_human": f"resources/initial_prompts/{LANGUAGE}/turn_prompt_a_human.template",
+            }            
 
         promptsdict = {}
         for key, file_path in prompt_files.items():
@@ -117,12 +127,23 @@ class CCBTSOptimizerInstanceGenerator(GameInstanceGenerator):
                             for tsample in num_shapes[total_shapes][combo_name]:
                                 skill_details = ""
                                 if config["use_function_header_in_prompt"]:
-                                    skill_details = tsample["optimized_function_header"]
+                                    if "optimized_function_header" in tsample:
+                                        skill_details = tsample["optimized_function_header"]
+                                    else:
+                                        optimized_function_header = f"# Optimized function for object {combo_name}\n# This function uses the following shapes:\n# {tsample['shapes']}\n\n"
+                                        skill_details = optimized_function_header
 
                                 if config["use_func_signature_only_in_prompt"]:
-                                    skill_details += tsample["optimized_function_signature"]
+                                    if "optimized_function_signature" in tsample:
+                                        skill_details += tsample["optimized_function_signature"]
+                                    else:
+                                        optimized_function_signature = f"def {combo_name}(board, colors, x, y)"
+                                        skill_details += optimized_function_signature
                                 else:
-                                    skill_details += tsample["optimized_function"]
+                                    if "optimized_function" in tsample:
+                                        skill_details += tsample["optimized_function"]
+                                    else:
+                                        skill_details += tsample["code"]["function"]
                                 skills_list[use_list_name].append(skill_details)
 
         with open(f"resources/skills_list_{LANGUAGE}.txt", "w") as f:
@@ -132,7 +153,8 @@ class CCBTSOptimizerInstanceGenerator(GameInstanceGenerator):
                 for skill in skills:
                     f.write(skill + "\n\n\n")
 
-        print(len(skills_list["train"]), len(skills_list["test"]))
+        print(f"Number of skills: train: {len(skills_list['train'])}, test:{len(skills_list['test'])}")
+        input("Press Enter to continue...")
         return skills_list
 
 
@@ -163,8 +185,20 @@ class CCBTSOptimizerInstanceGenerator(GameInstanceGenerator):
                                 for combo_name in num_shapes[total_shapes]:
                                     #print(len(num_shapes[total_shapes][combo_name]))
                                     for tsample in num_shapes[total_shapes][combo_name]:
+                                        #if tot_instances == 1:
+                                        #    break
                                         #if total_shapes not in ["2"]:# or "b" in combo_name:
                                         #    continue
+
+                                        if tsample is None or tsample["code"] is None:
+                                            print(f"TSAMPLE IS NONE {tsample}")
+                                            input()
+                                            continue
+
+                                        if board_type == "regular":
+                                            use_repeat_labels = True
+                                        else:
+                                            use_repeat_labels = False
 
                                         combo_name = tsample["combo_name"]
                                         if "optimized_function_header" in tsample:
@@ -175,12 +209,15 @@ class CCBTSOptimizerInstanceGenerator(GameInstanceGenerator):
                                         else:
                                             func_header = ""
                                             func_signature = f"def {combo_name}(board, colors, x, y)"
-                                            func_definition = tsample["code"]["single_turn"]["function"]
-                                            func_usage = tsample["code"]["single_turn"]["usage"]
+                                            func_definition = tsample["code"]["function"]
+                                            colors_tuple = tuple(tsample["colors"])
+                                            func_usage = f"{combo_name}(board, {colors_tuple}, {tsample['relative_positions'][0][0]}, {tsample['relative_positions'][0][1]})"
 
                                         target_board = tsample["generated_board"] if "generated_board" in tsample else None
                                         target_board_rep = tsample["generated_board_rep"] if "generated_board_rep" in tsample else None
                                         target_board_cells = tsample["gen_occupied_cells"] if "gen_occupied_cells" in tsample else None
+                                        repeat_locations = None
+                                        target_board_cells_repeat = None
 
                                         if board_type == "simple":
                                             use_inst_variant = "single_turn" if "single_turn" in tsample["dialogues"] else variant
@@ -193,6 +230,22 @@ class CCBTSOptimizerInstanceGenerator(GameInstanceGenerator):
                                             test_dialogues = tsample["dialogues"][use_inst_variant]["instructions"]
                                             board_size = {"rows": 8,
                                                         "cols": 8}
+                                        if target_board_rep is None or len(target_board_cells) == 0:
+                                            if board_type == "regular":
+                                                repeat_locations = tsample["repeat_locations"] if "repeat_locations" in tsample else None
+                                                gt_code = {"function": tsample["code"]["function"], "usage": tsample["code"]["output"]}
+                                                target_board_rep, target_board, target_board_cells, target_board_cells_repeat = self.prepare_ascii_rep.get_ascii_representation_rb(board_size, gt_code, combo_name, tsample["colors"], repeat_locations)
+                                            elif board_type == "simple":
+                                                if variant == "reconstruct-multi_turn":
+                                                    print("Looks like this is not successfully optimized. Skipping...")
+                                                    #input()
+                                                    continue
+                                                else:
+                                                    repeat_locations = None
+                                                    target_board_cells_repeat = None
+                                                    gt_code = tsample["code"]["single_turn"]
+                                                    print("This scenario is yet to be handled")
+                                                    input()                                            
 
                                         n_turns = config["max_turns"]
 
@@ -200,12 +253,11 @@ class CCBTSOptimizerInstanceGenerator(GameInstanceGenerator):
                                         instance = self.add_game_instance(experiment, tot_instances)
                                         instance["data"] = {}
 
-                                        if target_board_rep is None:
-                                            gt_code = tsample["code"]["single_turn"]                                            
-                                            ascii_rep_board, board_rep = self.prepare_ascii_rep.get_ascii_representation(gt_code, board_size)
-                                            target_board_rep = ascii_rep_board
-                                            target_board = board_rep
-                                            target_board_cells = self.prepare_ascii_rep.get_occupied_cells_from_board(board_rep)
+  
+
+                                            #target_board_rep = ascii_rep_board
+                                            #target_board = board_rep
+                                            #target_board_cells = self.prepare_ascii_rep.get_occupied_cells_from_board(board_rep)
 
                                         boardinfo = {"board": target_board,
                                                      "board_type": board_type,
@@ -215,9 +267,11 @@ class CCBTSOptimizerInstanceGenerator(GameInstanceGenerator):
                                                      "total_shapes": total_shapes,
                                                      "shapes": tsample["shapes"],
                                                      "colors": tsample["colors"],
-                                                     "x": tsample["x"],
-                                                     "y": tsample["y"],
-                                                     "locations": {"row": tsample["x"][0]+1, "col": tsample["y"][0]+1},
+                                                     "x": tsample["x"] if "x" in tsample else None,
+                                                     "y": tsample["y"] if "y" in tsample else None,
+                                                     #"locations": {"row": tsample["x"][0]+1, "col": tsample["y"][0]+1},
+                                                     "locations": {"row": tsample["x"][0], "col": tsample["y"][0]} if "x" in tsample and "y" in tsample else None,
+                                                     "relative_positions": tsample["relative_positions"] if "relative_positions" in tsample else None,
                                                      "orientations": tsample["orientations"] if "orientations" in tsample else None,
                                                      "min_rows": tsample["min_rows"] if "min_rows" in tsample else None,
                                                      "min_cols": tsample["min_cols"] if "min_cols" in tsample else None,
@@ -229,7 +283,9 @@ class CCBTSOptimizerInstanceGenerator(GameInstanceGenerator):
                                                      "code": tsample["code"],
                                                      "synthetic_instructions": test_dialogues[0]["<Programmer>"],
                                                      "target_board_rep": target_board_rep,
-                                                     "target_board_cells": target_board_cells
+                                                     "target_board_cells": target_board_cells,
+                                                     "repeat_locations": repeat_locations,
+                                                     "target_board_cells_repeat": target_board_cells_repeat,
                                                     }
                                         print(boardinfo["target_board_cells"])
 
@@ -240,7 +296,8 @@ class CCBTSOptimizerInstanceGenerator(GameInstanceGenerator):
                                         samples["prompt_incontext_labels"]["GRID_SIZE"] = f"{board_size['rows']} x {board_size['cols']}"
                                         samples["prompt_incontext_labels"]["SKILL_NAME"] = combo_name
                                         samples["prompt_incontext_labels"]["COLORS"] = tsample["colors"]
-                                        samples["prompt_incontext_labels"]["LOCATION"] = {"row": tsample["x"][0]+1, "col": tsample["y"][0]+1}
+                                        #samples["prompt_incontext_labels"]["LOCATION"] = {"row": tsample["x"][0]+1, "col": tsample["y"][0]+1}
+                                        samples["prompt_incontext_labels"]["LOCATION"] = {"row": tsample["x"][0], "col": tsample["y"][0]} if "x" in tsample and "y" in tsample else None
                                         samples["prompt_incontext_labels"]["SKILLS_DEFINITIONS"] = "\n".join(total_available_skills["test"])
 
                                         samples["prompt_incontext_labels"]["ROW"] = board_size["rows"]
@@ -283,7 +340,7 @@ class CCBTSOptimizerInstanceGenerator(GameInstanceGenerator):
                                             samples["prompt_incontext_labels"]["COL_MAX_TEXT"] = str(board_size["cols"] - 1)
 
 
-                                        promptsdict = self._prepare_prompts(variant, boardinfo, samples["prompt_incontext_labels"])
+                                        promptsdict = self._prepare_prompts(board_type, variant, boardinfo, samples["prompt_incontext_labels"])
 
                                         instance["data"]["prompts_dict"] = promptsdict
                                         instance["data"]["use_dspy_reuse"] = config["use_dspy_reuse"]
@@ -299,6 +356,7 @@ class CCBTSOptimizerInstanceGenerator(GameInstanceGenerator):
                                         instance["data"]["func_definition"] = func_definition
                                         instance["data"]["func_usage"] = func_usage
                                         instance["data"]["boardinfo"] = boardinfo
+                                        instance["data"]["use_repeat_labels"] = use_repeat_labels
                                         # Train Samples are not added - check later
                                         #instance["data"]["boardinfo"].pop("train_samples")
 
@@ -309,7 +367,10 @@ class CCBTSOptimizerInstanceGenerator(GameInstanceGenerator):
                                 #break
                             #break
                         #break
-                    #break
+                    break
+                break
+            break
+
 
 
         print(
