@@ -1,5 +1,6 @@
 import os
 import re
+from pathlib import Path
 import copy
 from copy import deepcopy
 from typing import List, Dict, Tuple
@@ -134,9 +135,12 @@ class CCBTSOptimizerMaster(DialogueGameMaster):
         self.genboard = None
         self.gen_board_cells = None   
 
+    def _prepare_function_signature_usage(self) -> str:
+        return f"Function signature: def {self.combo_name}(board, colors, x, y)\nFunction Usage: {self.funcusage}"
+
     def _on_before_game(self) -> None:
         """Initialise the dialogue history (firstlast specific)."""
-        p1_data = f"Instruction-Code Pairs: {json.dumps(self.inst_code_pairs)}\nError Feedback: None"
+        p1_data = self._prepare_function_signature_usage() + "\n" + f"Instruction-Code Snippets: {json.dumps(self.inst_code_pairs)}\nError Feedback: None"
         if self.player_a_type == "human":
             pass
         else:
@@ -264,6 +268,22 @@ class CCBTSOptimizerMaster(DialogueGameMaster):
         return f"# Optimized function for object {func_name}\n" + f"# This function uses the following shapes:\n# {self.board_info['shapes']}\n\n"
 
 
+    def _next_version_file(self, directory, base_name, ext=".json"):
+        directory = Path(directory)
+        # combo_name_v<number>_inst_code_pairs_v<number>.json
+        pattern = re.compile(
+            re.escape(base_name) + r"_v(\d+)" + re.escape(ext) + r"$"
+        )
+
+        versions = []
+        for path in directory.glob(f"{base_name}_v*{ext}"):
+            match = pattern.match(path.name)
+            if match:
+                versions.append(int(match.group(1)))
+
+        next_version = (max(versions) if versions else 0) + 1
+        return directory / f"{base_name}_v{next_version}{ext}"
+
 
     def _save_optimized_function(self, func_name: str, func_code: str, func_usage: str):
         func_header = self._prepare_function_header(func_name)
@@ -282,18 +302,10 @@ class CCBTSOptimizerMaster(DialogueGameMaster):
 
         """Save the optimized function to a file."""
         os.makedirs("optimized_functions", exist_ok=True)
-        filename = f"combo_name_{self.combo_name}_optimized_v1.json"
-        if os.path.exists(filename):
-            logger.info(f"File {filename} already exists.")
-            current_version = filename.split("_v")[-1].split(".py")[0]
-            if current_version.isdigit():
-                new_version_num = int(current_version) + 1
-            else:
-                raise ValueError(f"Unexpected filename format: {filename} to increment version for saving optimized function.")
-
-            filename = f"combo_name_{self.combo_name}_optimized_v{new_version_num}.json"
-
-        with open(os.path.join("optimized_functions", filename), "w") as f:
+        #filename = f"combo_name_{self.combo_name}_optimized_v1.json"
+        filename = f"combo_name_{self.combo_name}_optimized"
+        use_filename = self._next_version_file("optimized_functions", filename)
+        with open(use_filename, "w") as f:
             #json.dump(inst_code_pairs, f, indent=4)
             json.dump(reuse_data, f, indent=4)
 
@@ -349,7 +361,8 @@ class CCBTSOptimizerMaster(DialogueGameMaster):
     def _prepare_playera_reprobe_response(self, optim_error):
         logger.info(f"Preparing reprobe response for Player A. Current turn: {self.current_turn}, Error:\n{optim_error}")
 
-        input_data = f"Optimized function did not reconstruct the target grid correctly. Retry\nFunction Definition: def {self.combo_name}(board, colors, x, y)\n"# Function Usage: {self.funcusage}"
+        input_data = "Optimized function did not reconstruct the target grid correctly. Retry\n"+ self._prepare_function_signature_usage() + "\n"
+
 
         turn_prompt_co = input_data + "\n" + f"Target Grid:\n{self.player_a_goal}\n{optim_error}"
         if not self.use_dspy_optim:

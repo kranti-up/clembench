@@ -102,6 +102,7 @@ class CCBTSOptimizerInstanceGenerator(GameInstanceGenerator):
         config = self.load_json(
             f"resources/config/{LANGUAGE}/taskconfig.json")
 
+        use_only_success_samples = config["use_only_success_samples"]
         tot_instances = 0
         boards = config["boards"]
         for board in boards:
@@ -126,6 +127,10 @@ class CCBTSOptimizerInstanceGenerator(GameInstanceGenerator):
                                         if "inst_code_pairs" not in tsample:
                                             # TODO: Need to handle this later for base datasets
                                             print("Skipping sample with missing inst_code_pairs")
+                                            continue
+
+                                        if use_only_success_samples and not tsample["reconstruction_status"] or tsample["reconstruction_aborted"]:
+                                            print("Skipping sample with failed or aborted reconstruction")
                                             continue
 
                                         combo_name = tsample["combo_name"]
@@ -155,7 +160,7 @@ class CCBTSOptimizerInstanceGenerator(GameInstanceGenerator):
                                         instance["data"] = {}
 
                                         gt_code = tsample["code"]["single_turn"]
-                                        if target_board_rep is None:
+                                        if target_board_rep is None and variant != "reconstruct-multi_turn":
                                             ascii_rep_board, board_rep = self.prepare_ascii_rep.get_ascii_representation(gt_code, board_size)
                                             target_board_rep = ascii_rep_board
                                             target_board = board_rep

@@ -36,6 +36,36 @@ In adhering to this structure, your objective is:
         - Do not reuse the input code–sequence pairs as they are; the sequence is meant to be optimized.
         - Output a valid standalone Python optimized function.
 
+        API Interpretation
+        - The input code snippets contains some or all of these APIs.
+              - put(board: np.ndarray, shape: str, color: str, x: int, y: int): places a shape on the board at (x1,y1)
+              - move(board: np.ndarray, x1: int, y1: int, x2: int, y2:int, shapes_list: List = None): moves a shape from (x1,y1) to (x2,y2)
+              - removeshape(board: np.ndarray, x: int, y: int, shape, color): removes a shape from (x1,y1)
+              - clear(board: np.ndarray): clears/removes all shapes from the board
+              - undo(board: np.ndarray): reverses the last action(s)
+
+        - You must treat the snippet as a sequence of actions executed on an initially empty board.
+              - Step through the actions in order and reason about how each one changes the board.
+              - Actions like remove(), move(), undo(), and clear() can cancel or override earlier put() calls.
+              - Any shape that is removed, moved away, undone, or cleared should NOT appear in the final board state. Earlier put() calls that get canceled in this way should be ignored.
+              - Figure out which shapes actually remain at the end.
+
+        - Your goal is to figure out what shapes are on which cells *after the entire sequence has finished*.
+             - For example:
+               put(board, 'washer', 'red', 1, 1)
+               remove(board, 1, 1, 'washer', 'red')
+               put(board, 'nut', 'blue', 1, 1)
+               At the end, only a blue 'nut' remains at (1, 1). The red 'washer' should NOT be included in the final result.
+
+               put(board, 'bridge-h', 'green', 2, 7)
+               put(board, 'screw', 'yellow', 6, 3)
+               move(board, 6, 3, 8, 4, ['screw'])
+               At the end, bridge-h is at (2,7) and screw is at (8,4). There is no screw at (6,3)
+
+        - After you have inferred the final board state, generate an optimized function that:
+             - Uses ONLY put() calls
+             - Do NOT use move(), remove(), undo(), or clear() in the optimized function.
+
         SHAPE OCCUPANCY
         - All shapes occupy **exactly one cell**, **except the "bridge"**.
         - A **bridge** spans **two adjacent cells**:
@@ -61,9 +91,9 @@ In adhering to this structure, your objective is:
         
         Given:
         - prompt: Prompt with the following details:
-            - function definition: definition of the function including its name
+            - function signature: signature of the function including its name. use only this signature.
             - function usage: how the function will be used
-            - code across turns: a list of code snippets corresponding to different instructions
+            - instruction-code snippets across turns: a list of code snippets corresponding to different instructions
             - optional error feedback from previous attempts
         
         Produce:

@@ -4,7 +4,8 @@
     "use_dspy_optim_history": false,    
     "use_dspy_optim_retry": false,
     "num_dspy_optim_retry": 0,
-    "use_diff_human_prompts": false,    
+    "use_diff_human_prompts": false,
+    "use_only_success_samples": true,
     "board": {
         "rows": 8,
         "cols": 8
