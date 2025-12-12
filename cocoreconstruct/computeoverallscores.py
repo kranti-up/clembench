@@ -248,7 +248,7 @@ def compute_scores(base_dir: str, verbose: bool = True) -> Dict[str, Any]:
                     avg_turns = round((sum(turns) / len(turns)), 2) if turns else 0
                     dialog_stats[sk] = {
                         "episodes": ep_list,
-                        "avg_turns": avg_turns,
+                        "avg_turns": np.median(turns) if turns else 0, #avg_turns
                         "max_turns": max(turns) if turns else 0,
                         "min_turns": min(turns) if turns else 0,
                     }
@@ -308,7 +308,7 @@ def compute_scores(base_dir: str, verbose: bool = True) -> Dict[str, Any]:
 
 def main():
     parser = argparse.ArgumentParser(description="Compute overall scores from experiment directories")
-    parser.add_argument("base_dir", nargs="?", default="/home/admin/Desktop/codebase/cocobots/testimageccbts_local/clemnew/clembench/cocoreconstruct/r2", help="Base directory containing model results")
+    parser.add_argument("base_dir", nargs="?", default="/home/admin/Desktop/codebase/cocobots/testimageccbts_local/clemnew/clembench/cocoreconstruct/rpp_3", help="Base directory containing model results")
     parser.add_argument("--quiet", action="store_true", help="Suppress verbose printing")
     args = parser.parse_args()
 

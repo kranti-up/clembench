@@ -1,5 +1,6 @@
 import os
 import re
+from pathlib import Path
 import copy
 from copy import deepcopy
 from typing import List, Dict, Tuple
@@ -14,6 +15,7 @@ from clemcore.backends import Model
 
 from players import InstructionGiver, InstructionFollower
 from utils.prepareasciirep import PrepareASCIIRep
+from utils.preparellmsandbox import PrepareLLMSandBox
 
 
 import logging
@@ -38,7 +40,6 @@ class CCBTSReconstMaster(DialogueGameMaster):
         """Setup the episode (mandatory)."""
 
         #logging.disable(logging.CRITICAL)
-        self.prepare_ascii_rep = PrepareASCIIRep()
         self.instancedata = game_instance["data"]
         self.game_id = game_instance["game_id"]
 
@@ -65,6 +66,7 @@ class CCBTSReconstMaster(DialogueGameMaster):
         self.turn_prompt_b = self.prompts_dict.get("turn_prompt_b", "")
         self.turn_prompt_b_human = self.prompts_dict.get("turn_prompt_b_human", "")
         self.player_a_goal = data["ascii_rep"]
+        self.use_sandbox_llm = data["use_sandbox_llm"]
 
 
         # initialise game variables:
@@ -99,6 +101,12 @@ class CCBTSReconstMaster(DialogueGameMaster):
         self.violated_request_count: int = 0 
 
         self.set_pass_turn = True
+
+        self.prepare_ascii_rep = PrepareASCIIRep()
+        if self.use_sandbox_llm:
+            self.prepare_sandbox = PrepareLLMSandBox(config=data["sandbox_llm"])
+
+
 
         logger.info(f"GT Code:\n{self.gtcode}")
         self.gt_image_base64 = None#self.prepare_ascii_rep.get_image_base64_from_filepath(self.gtimagefile)
@@ -199,6 +207,8 @@ class CCBTSReconstMaster(DialogueGameMaster):
         #TODO: Check what to log here
         #self.gamedata["genboard"] = self.genboard
         self.gamedata["play_turns"] = self.current_round
+        if self.use_sandbox_llm:
+            self.prepare_sandbox.close()
         self._save_instruction_code_pairs()
         self._log_game_end()  
 
@@ -454,9 +464,28 @@ class CCBTSReconstMaster(DialogueGameMaster):
                           "groundtruth_board_rep": groundtruth_board_rep,
                           "generated_board_rep": generated_board_rep,
                           "generated_board": generated_board,
-                          "gen_occupied_cells": gen_occupied_cells
+                          "gen_occupied_cells": gen_occupied_cells,
+                          "reconstruction_status": self.success,
+                          "reconstruction_aborted": self.aborted,
                          }
         return optimizer_data
+
+
+    def _next_version_file(self, directory, base_name, ext=".json"):
+        directory = Path(directory)
+        # combo_name_v<number>_inst_code_pairs_v<number>.json
+        pattern = re.compile(
+            re.escape(base_name) + r"_v(\d+)" + re.escape(ext) + r"$"
+        )
+
+        versions = []
+        for path in directory.glob(f"{base_name}_v*{ext}"):
+            match = pattern.match(path.name)
+            if match:
+                versions.append(int(match.group(1)))
+
+        next_version = (max(versions) if versions else 0) + 1
+        return directory / f"{base_name}_v{next_version}{ext}"
 
 
     def _save_instruction_code_pairs(self) -> None:
@@ -473,21 +502,19 @@ class CCBTSReconstMaster(DialogueGameMaster):
 
         # Save to a json file
         os.makedirs("reconstruct-data-pairs", exist_ok=True)
-        filename = f"combo_name_{self.board_info['combo_name']}_inst_code_pairs_v1.json"
-        if os.path.exists(os.path.join("reconstruct-data-pairs", filename)):
-            logger.info(f"File {filename} already exists.")
-            current_version = filename.split(".json")[0].split("_v")[-1]
-            if current_version.isdigit():
-                new_version = int(current_version) + 1
-            else:
-                raise ValueError(f"Unexpected filename format: {filename} to increment version for saving inst-code pairs.")
-            filename = f"combo_name_{self.board_info['combo_name']}_inst_code_pairs_v{new_version}.json"
-        with open(os.path.join("reconstruct-data-pairs", filename), "w") as f:
+        filename = f"combo_name_{self.board_info['combo_name']}_inst_code_pairs"
+        use_filename = self._next_version_file("reconstruct-data-pairs", filename)
+        with open(use_filename, "w") as f:
             #json.dump(inst_code_pairs, f, indent=4)
             json.dump(optimizer_data, f, indent=4)
     
     def _get_playerb_grid(self):
-        return None
+        if self.genboard is None:
+            return "None"
+
+        _, gen_occupied_cells = self.prepare_ascii_rep.get_ascii_representation_from_board_layers(self.genboard, self.board_info["size"])        
+        diff_grid = self.prepare_ascii_rep.get_layer_representation_diff(self.gt_occupied_cells, gen_occupied_cells)
+        return diff_grid
 
 
     def _get_current_filled_grid(self):
@@ -557,6 +584,7 @@ class CCBTSReconstMaster(DialogueGameMaster):
         return self._prepare_playerb_turn_response(gen_image_base64, diff_grid, details, reconstruction_complete)
     
     def _prepare_playerb_code_response(self, details: str) -> str:
+        logger.info(f"Preparing player B code response for execution: {details}")
         if self.genboard is None:
             board_gen_call = None
         else:
@@ -565,9 +593,18 @@ class CCBTSReconstMaster(DialogueGameMaster):
             #board_gen_call = self.prepare_ascii_rep.execute_generated_response_skill(
             #    details, self.board_info["size"], board_gen_call, self.gtcode["function"]
             #)
-            board_gen_call, error, code_stats = self.prepare_ascii_rep.execute_generated_response(details, self.board_info["size"], board_gen_call)
+            if not self.use_sandbox_llm:
+                board_gen_call, error, code_stats = self.prepare_ascii_rep.execute_generated_response(details, self.board_info["size"], board_gen_call)
 
-            logger.info("Generated board state after executing response")
+            else:
+                logger.info("Calling sandbox to run the generated code.")
+                result = self.prepare_sandbox.run_code(details, board_gen_call, self.board_info["size"]["rows"], self.board_info["size"]["cols"])
+                logger.info(f"Generated board state after executing response: {result['error']}")
+
+                error = result["error"]# result["stderror"]
+                code_stats = result["code_stats"]
+                board_gen_call = result["board"]                
+
             if error:
                 logger.error("Error executing generated response.")
                 return None, error

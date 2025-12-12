@@ -3,9 +3,8 @@ import numpy as np
 
 
 def plot_screw(ax, x, y, factor=3, color="b", cell_size=1):
-    if color == 'y':
-        color = 'orange'
-
+    if color == "y":
+        color = "orange"
 
     circle = plt.Circle(
         (x + cell_size / 2, y + cell_size / 2),
@@ -18,8 +17,8 @@ def plot_screw(ax, x, y, factor=3, color="b", cell_size=1):
 
 
 def plot_washer(ax, x, y, color="r", cell_size=1):
-    if color == 'y':
-        color = 'orange'
+    if color == "y":
+        color = "orange"
 
     diamond = plt.Polygon(
         [
@@ -37,9 +36,9 @@ def plot_washer(ax, x, y, color="r", cell_size=1):
     return
 
 
-def plot_nut(ax, x, y, factor=1.4, color="g", cell_size=1):
-    if color == 'y':
-        color = 'orange'
+def plot_nut(ax, x, y, factor=1.2, color="g", cell_size=1):
+    if color == "y":
+        color = "orange"
 
     square = plt.Rectangle(
         (
@@ -57,8 +56,8 @@ def plot_nut(ax, x, y, factor=1.4, color="g", cell_size=1):
 
 
 def plot_bridge_h(ax, x, y, factor=1.6, color="g", cell_size=1):
-    if color == 'y':
-        color = 'orange'
+    if color == "y":
+        color = "orange"
 
     bridge = plt.Rectangle(
         (
@@ -76,9 +75,8 @@ def plot_bridge_h(ax, x, y, factor=1.6, color="g", cell_size=1):
 
 
 def plot_bridge_v(ax, x, y, factor=1.6, color="g", cell_size=1):
-    if color == 'y':
-        color = 'orange'
-
+    if color == "y":
+        color = "orange"
 
     bridge = plt.Rectangle(
         (
@@ -97,7 +95,7 @@ def plot_bridge_v(ax, x, y, factor=1.6, color="g", cell_size=1):
 
 def set_up_board_plot(rows, cols, cell_size):
     # Create a figure and axis
-    fig, ax = plt.subplots(figsize=(2.5, 2.5), dpi=1000)
+    fig, ax = plt.subplots()
 
     # Loop through rows and columns to create the grid
     for row in range(rows):
@@ -118,25 +116,9 @@ def set_up_board_plot(rows, cols, cell_size):
     ax.set_xlim(0, cols)
     ax.set_ylim(0, rows)
 
-    # ---- Put ticks at cell centers and use them as labels ----
-    ax.set_xticks(np.arange(cols) + 0.5)
-    ax.set_yticks(np.arange(rows) + 0.5)
-
-    ax.set_xticklabels(range(1, cols + 1))
-    ax.set_yticklabels(range(1, rows + 1))
-
-    #ax.tick_params(axis="both", length=0, pad=5)
-    ax.tick_params(axis="both", length=0, pad=5, labelsize=5)  # <-- small font
-
-    # Column numbers on top
-    ax.xaxis.tick_top()
-
-    # Axis titles
-    ax.set_xlabel("Columns →", labelpad=2, fontsize=6)
-    ax.xaxis.set_label_position('top')
-
-    ax.set_ylabel("Rows →", labelpad=2, fontsize=6)    
-    ax.yaxis.set_label_position('left')
+    # Remove axis labels and ticks
+    ax.set_xticks([])
+    ax.set_yticks([])
 
     ax.set_aspect("equal", adjustable="box")
 
@@ -168,14 +150,19 @@ def plot_board(board, filename=None):
                 if obj[r, c] == "T":
                     plot_bridge_v(ax, r, c, color=clr[r, c])
     if filename:
-        #plt.savefig(filename, dpi=300)
-        plt.savefig(filename, dpi=1000)
+        plt.savefig(filename, dpi=300)
     plt.close()
 
 
-long_to_short = {"washer": "W", "nut": "N", "screw": "S"}
+long_to_short = {
+    "washer": "W",
+    "nut": "N",
+    "screw": "S",
+    "bridge-h": "L",
+    "bridge-v": "T",
+}
 short_to_long = {"W": "washer", "N": "nut", "S": "screw", "L": "bridge-h", "R": "bridge-h", "T": "bridge-v", "B": "bridge-v"}
-long_to_short_color = {"red": "r", "blue": "b", "green": "g", "yellow": "y"}
+long_to_short_color = {"red": "r", "green": "g", "blue": "b", "yellow": "y"}
 
 
 # custom exceptions
@@ -186,6 +173,16 @@ class SameShapeStackingError(Exception):
 
 class SameShapeAtAlternateLevels(Exception):
     "Raised when same shapes are stacked at alternate levels"
+    pass
+
+
+class SameColorAtAlternateLevels(Exception):
+    "Raised when same colors are stacked at alternate levels"
+    pass
+
+
+class SameColorStackingError(Exception):
+    "Raised when same colors are stacked on top of each other"
     pass
 
 
@@ -215,7 +212,7 @@ def get_top_layer(board, x, y):
     if top_layer.size > 0:
         top_layer = top_layer[0]
     else:
-        raise (ValueError(f"Placement not possible, Current stack is full{top_layer.size}"))
+        raise (ValueError("Placement not possible"))
     return top_layer
 
 def get_total_occupied_layers(board, x, y):
@@ -224,62 +221,106 @@ def get_total_occupied_layers(board, x, y):
     return occupied_layers.size
 
 
+def check_for_errors(top_layer, board, shape, color, x, y):
+    if board[top_layer - 1, 0, x, y] == "S":
+        raise (NotOnTopOfScrewError("Placement not possible"))
+
+    start_layer = top_layer - 1
+    while(start_layer >= 0):
+        if board[start_layer, 0, x, y] == long_to_short[shape]:
+            raise (SameShapeStackingError("Placement not possible"))
+        start_layer -= 1
+
+    if shape == "bridge-h":
+        if board[top_layer - 1, 0, x, y + 1] == "S":
+            raise (NotOnTopOfScrewError("Placement not possible"))
+
+        if (
+            board[top_layer - 1, 1, x, y] == long_to_short_color[color]
+            or board[top_layer - 1, 1, x, y + 1] == long_to_short_color[color]
+        ):
+            raise (SameColorStackingError("Placement not possible"))
+
+    elif shape == "bridge-v":
+        if board[top_layer - 1, 0, x + 1, y] == "S":
+            raise (NotOnTopOfScrewError("Placement not possible"))
+
+        if (
+            board[top_layer - 1, 1, x, y] == long_to_short_color[color]
+            or board[top_layer - 1, 1, x + 1, y] == long_to_short_color[color]
+        ):
+            raise (SameColorStackingError("Placement not possible"))
+    else:
+        if board[top_layer - 1, 1, x, y] == long_to_short_color[color]:
+            raise (SameColorStackingError("Placement not possible"))
+
+    '''
+    if top_layer > 1:
+        # check if same shape is placed at alternate levels
+        if board[top_layer - 2, 0, x, y] == long_to_short[shape]:
+            raise (SameShapeAtAlternateLevels("Placement not possible"))
+
+        # check if same color is placed at alternate levels
+        if board[top_layer - 2, 1, x, y] == long_to_short_color[color]:
+            raise (SameColorAtAlternateLevels("Placement not possible"))
+    '''
+
 # TODO: operate on copy of board, so that original board
 # can be returned if placement not possible? (rather than
 # raising an exception)
 def put(board, shape, color, x, y):
-    if x >= board.shape[2] or y >= board.shape[3]:
-        raise (DimensionsMismatchError("Row, Column values exceed board dimensions. Placement not possible"))
+    x_ = (x - 1)
+    y_ = (y - 1)
+    if x_ >= board.shape[2] or y_ >= board.shape[3] or x_ < 0 or y_ < 0:
+        raise (DimensionsMismatchError("Placement not possible"))
 
-    top_layer = get_top_layer(board, x, y)
+    top_layer = get_top_layer(board, x_, y_)
 
     if shape == "bridge-h":
-        if y + 1 >= board.shape[3]:
-            raise (ValueError("Grid boundary exceeded while placing bridge-h. Placement not possible"))
+        if y_ + 1 >= board.shape[3]:
+            raise (ValueError("Placement not possible"))
 
         if top_layer >= 2:
-            raise (BridgePlacementError("Cannot place bridge at levels greater than 2. Placement not possible"))
+            raise (BridgePlacementError("Placement not possible"))
 
-        top_layer_adjacent = get_top_layer(board, x, y + 1)
+        if top_layer > 0:
+            check_for_errors(top_layer, board, shape, color, x_, y_)
+
+        top_layer_adjacent = get_top_layer(board, x_, y_ + 1)
         if top_layer != top_layer_adjacent:
-            raise (DepthMismatchError("Depth is mismatched while placing bridge-h. Placement not possible"))
+            raise (DepthMismatchError("Placement not possible"))
 
-        board[top_layer, 0, x, y] = "L"
-        board[top_layer, 1, x, y] = color
+        board[top_layer, 0, x_, y_] = "L"
+        board[top_layer, 1, x_, y_] = color
 
-
-        board[top_layer, 0, x, y + 1] = "R"
-        board[top_layer, 1, x, y + 1] = color
+        board[top_layer, 0, x_, y_ + 1] = "R"
+        board[top_layer, 1, x_, y_ + 1] = color
     elif shape == "bridge-v":
-        if x + 1 >= board.shape[2]:
-            raise (ValueError("Grid boundary exceeded while placing bridge-v. Placement not possible"))
+        if x_ + 1 >= board.shape[2]:
+            raise (ValueError("Placement not possible"))
 
         if top_layer >= 2:
-            raise (BridgePlacementError("Cannot place bridge at levels greater than 2. Placement not possible"))
-        
-        top_layer_adjacent = get_top_layer(board, x + 1, y)
-        if top_layer != top_layer_adjacent:
-            raise (DepthMismatchError("Depth is mismatched while placing bridge-v. Placement not possible"))        
-        board[top_layer, 0, x, y] = "T"
-        board[top_layer, 1, x, y] = color
+            raise (BridgePlacementError("Placement not possible"))
 
-        board[top_layer, 0, x + 1, y] = "B"
-        board[top_layer, 1, x + 1, y] = color
+        if top_layer > 0:
+            check_for_errors(top_layer, board, shape, color, x_, y_)
+
+        top_layer_adjacent = get_top_layer(board, x_ + 1, y_)
+        if top_layer != top_layer_adjacent:
+            raise (DepthMismatchError("Placement not possible"))
+
+        board[top_layer, 0, x_, y_] = "T"
+        board[top_layer, 1, x_, y_] = color
+
+        board[top_layer, 0, x_ + 1, y_] = "B"
+        board[top_layer, 1, x_ + 1, y_] = color
     else:
         # check if it is being placed on top of another screw
         if top_layer > 0:
-            if board[top_layer - 1, 0, x, y] == "S":
-                raise (NotOnTopOfScrewError("Cannot place shape on top of a screw. Placement not possible"))
-            if board[top_layer - 1, 0, x, y] == long_to_short[shape]:
-                raise (SameShapeStackingError("Cannot stack the same shapes on top of each other. Placement not possible"))
+            check_for_errors(top_layer, board, shape, color, x_, y_)
 
-        if top_layer > 1:
-            # check if same shape is placed at alternate levels
-            if board[top_layer - 2, 0, x, y] == long_to_short[shape]:
-                raise (SameShapeAtAlternateLevels("Cannot place the same shape at alternate levels. Placement not possible"))
-
-        board[top_layer, 0, x, y] = long_to_short[shape]
-        board[top_layer, 1, x, y] = color
+        board[top_layer, 0, x_, y_] = long_to_short[shape]
+        board[top_layer, 1, x_, y_] = color
     # check whether resulting board is legal
     return
 
@@ -294,6 +335,7 @@ def init_board(rows=6, cols=6, max_height=4, depth=2):
 
 
 def place_on_board(board, obj_board, x, y):
+    # TODO: check if x, y to be decreased by 1 for 0 indexing
     board[
         :, :, slice(x, x + obj_board.shape[2]), slice(y, y + obj_board.shape[3])
     ] = obj_board
@@ -314,7 +356,6 @@ def board_rot90(board):
     }
     board_r[:, 0] = np.vectorize(bridge_rot_dict.get)(board_r[:, 0])
     return board_r
-
 
 
 def _validate_shapes(board, x, y, shapes_list, start_range, end_range):
@@ -365,12 +406,17 @@ def _clear_cell_shapes(board, x, y, undo_list):
 
 def move(board, x1, y1, x2, y2, shapes_list=None):
 
-    if x1 < 0 or x1 >= board.shape[2] or y1 < 0 or y1 >= board.shape[3]:
+    x1_ = x1 - 1
+    y1_ = y1 - 1
+    x2_ = x2 - 1
+    y2_ = y2 - 1
+
+    if x1_ < 0 or x1_ >= board.shape[2] or y1_ < 0 or y1_ >= board.shape[3]:
         raise (DimensionsMismatchError("Source location out of bounds"))
-    if x2 < 0 or x2 >= board.shape[2] or y2 < 0 or y2 >= board.shape[3]:
+    if x2_ < 0 or x2_ >= board.shape[2] or y2_ < 0 or y2_ >= board.shape[3]:
         raise (DimensionsMismatchError("Destination location out of bounds"))
     
-    if x1 == x2 and y1 == y2:
+    if x1_ == x2_ and y1_ == y2_:
         raise (ValueError("Source and destination locations are the same"))
     
     if shapes_list is not None and len(shapes_list) == 0:
@@ -378,14 +424,14 @@ def move(board, x1, y1, x2, y2, shapes_list=None):
 
     if shapes_list is not None:
         new_layer_len = len(shapes_list)
-        cur_max_top_layer = get_total_occupied_layers(board, x1, y1)
+        cur_max_top_layer = get_total_occupied_layers(board, x1_, y1_)
         if cur_max_top_layer < new_layer_len:
             raise (ValueError("Not enough shapes at source location to move"))
         start_range = cur_max_top_layer - new_layer_len
         end_range = cur_max_top_layer
-        _validate_shapes(board, x1, y1, shapes_list, start_range, end_range)
+        _validate_shapes(board, x1_, y1_, shapes_list, start_range, end_range)
     else:
-        cur_max_top_layer = get_total_occupied_layers(board, x1, y1)
+        cur_max_top_layer = get_total_occupied_layers(board, x1_, y1_)
         new_layer_len = 1
         if cur_max_top_layer < new_layer_len:
             raise (ValueError("Not enough shapes at source location to move"))
@@ -393,7 +439,7 @@ def move(board, x1, y1, x2, y2, shapes_list=None):
         start_range = cur_max_top_layer-1
         end_range = start_range+1
 
-    new_location_top_layer = get_total_occupied_layers(board, x2, y2)
+    new_location_top_layer = get_total_occupied_layers(board, x2_, y2_)
     #print(f"new_layer_len: {new_layer_len}, cur_max_top_layer: {cur_max_top_layer}, new_location_top_layer: {new_location_top_layer}")
     
     if new_location_top_layer+new_layer_len > board.shape[0]:
@@ -403,8 +449,8 @@ def move(board, x1, y1, x2, y2, shapes_list=None):
     move_shapes_list = []
 
     for layer in range(start_range, end_range):
-        shape = short_to_long[board[layer, 0, x1, y1]]
-        color = board[layer, 1, x1, y1]
+        shape = short_to_long[board[layer, 0, x1_, y1_]]
+        color = board[layer, 1, x1_, y1_]
         move_shapes_list.append((shape, color, layer))
 
     source_list = []
@@ -414,7 +460,7 @@ def move(board, x1, y1, x2, y2, shapes_list=None):
     for shape, color, layer in move_shapes_list:
 
         try:
-            put(board, shape, color, x2, y2)
+            put(board, shape, color, x2_, y2_)
             # Tracking shape from the source and destination locations for later clearing
             source_list.append((shape, color, layer))
             dest_list.append((shape, color, dest_layer))
@@ -422,10 +468,10 @@ def move(board, x1, y1, x2, y2, shapes_list=None):
 
         except Exception as e:
             # If placement fails, clear the objects at the destination location
-            _clear_cell_shapes(board, x2, y2, dest_list[::-1])
+            _clear_cell_shapes(board, x2_, y2_, dest_list[::-1])
             raise e
     # If all placements are successful, clear the objects at the source location
-    _clear_cell_shapes(board, x1, y1, source_list)
+    _clear_cell_shapes(board, x1_, y1_, source_list)
     return board
 
 def clear(board):
@@ -434,12 +480,17 @@ def clear(board):
 
 
 def remove(board, x, y, shape, color):
-    top_layer = get_top_layer(board, x, y)
+    x_ = (x - 1)
+    y_ = (y - 1)
+    if x_ >= board.shape[2] or y_ >= board.shape[3] or x_ < 0 or y_ < 0:
+        raise (DimensionsMismatchError("Removal not possible"))
+
+    top_layer = get_top_layer(board, x_, y_)
     if top_layer == 0:
         raise (ValueError("No shapes to remove at the specified location"))
 
-    board_shape = board[top_layer - 1, 0, x, y]
-    board_color = board[top_layer - 1, 1, x, y]
+    board_shape = board[top_layer - 1, 0, x_, y_]
+    board_color = board[top_layer - 1, 1, x_, y_]
 
     if board_shape in ["R", "B"]:
         raise (ValueError("Non-anchor token found at source location"))
@@ -456,20 +507,20 @@ def remove(board, x, y, shape, color):
         raise (ValueError("Shape or color at source location does not match the provided shape and color"))
 
     if shape == "bridge-h":
-        top_layer_next_col = get_top_layer(board, x, y + 1)
+        top_layer_next_col = get_top_layer(board, x_, y_ + 1)
         if top_layer != top_layer_next_col:
             raise (ValueError("Bridge shape incomplete at source location"))
-        board[top_layer - 1, 0, x, y + 1] = "0"
-        board[top_layer - 1, 1, x, y + 1] = "0"
+        board[top_layer - 1, 0, x_, y_ + 1] = "0"
+        board[top_layer - 1, 1, x_, y_ + 1] = "0"
     elif shape == "bridge-v":
-        top_layer_next_row = get_top_layer(board, x + 1, y)
+        top_layer_next_row = get_top_layer(board, x_ + 1, y_)
         if top_layer != top_layer_next_row:
             raise (ValueError("Bridge shape incomplete at source location"))
-        board[top_layer - 1, 0, x + 1, y] = "0"
-        board[top_layer - 1, 1, x + 1, y] = "0"
+        board[top_layer - 1, 0, x_ + 1, y_] = "0"
+        board[top_layer - 1, 1, x_ + 1, y_] = "0"
 
-    board[top_layer - 1, 0, x, y] = "0"
-    board[top_layer - 1, 1, x, y] = "0"
+    board[top_layer - 1, 0, x_, y_] = "0"
+    board[top_layer - 1, 1, x_, y_] = "0"
 
 
     return board

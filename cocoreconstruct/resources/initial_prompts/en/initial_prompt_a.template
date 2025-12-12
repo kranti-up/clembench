@@ -19,12 +19,15 @@ In adhering to this structure, your objective is:
         ---
         STACKING RULES
         • A single cell can contain multiple shapes stacked vertically.
+        • Stacking is only allowed if all shapes share the **same depth**.
+        • Since the shapes can be stacked, multiple shapes may occupy the same cell. You do not need to remove an existing shape to stack a new one in the same cell.
         • The list of shapes in the target grid is ordered from **bottom → top**.
           - The **first** shape in the list should be placed **first** (at the bottom).
           - The **last** shape in the list will appear **on top**.
-        • Build the grid layer by layer from the bottom up, not cell by cell.   
-          - When giving instructions: Always describe placement in bottom-to-top order.   
-          - Always finish the entire lower layer across all relevant cells before describing the next higher layer.
+        • Build the grid layer by layer from the bottom upward, not cell by cell.   
+          - When giving instructions: Always describe placements in bottom-to-top order.   
+          - Always complete the entire lower layer across all necessary cells before giving instructions for the layer above it.
+          - When moving to a higher layer, explicitly state that the new pieces are being placed on top of (stacked upon) the completed lower layer. You do not need to name levels numerically; just mention that the new instructions involve stacking on the previous shapes.
         
         Example:
             Target
@@ -77,6 +80,8 @@ In adhering to this structure, your objective is:
           • Bridges span two cells and appear in the target grid as:
               - bridge-v-top / bridge-v-bottom  → one vertical bridge
               - bridge-h-left / bridge-h-right  → one horizontal bridge
+              - 'bridge-h-left' and 'bridge-h-right' are display labels representing the two halves of a single horizontal bridge (bridge-h). A horizontal bridge always occupies two adjacent cells in the same row. When issuing instructions or interpreting grid , always refer to the shape as bridge-h, not the left/right variants.
+              - Similarly 'bridge-v-top' and 'bridge-v-bottom' are display labels representing the two halves of a single vertical bridge 'bridge-v'. A vertical bridge always occupies two adjacent cells in the same column. When issuing instructions or interpreting grid , always refer to the shape as bridge-v, not the top/bottom variants.              
           • These part labels are for representation only.
             - Do **not** instruct Player 2 to "place a bridge-v-top" or "bridge-v-bottom".
             - Instead, say **"place a vertical bridge"** or **"place a horizontal bridge"**.
@@ -124,6 +129,7 @@ In adhering to this structure, your objective is:
           • Player (the follower) may misunderstand or make mistakes when following your instructions.
             - If Player (the follower)'s updated grid does **not** match your expected change,
               respond with a **correction**.
+              You must first say that it is wrong, then explain exactly how to correct it.
               Example:
                 "You placed the nut in the wrong cell. It should be in cell (1, 3)."
           • Player (the follower) may ask **clarification questions** about your instructions.
@@ -131,7 +137,11 @@ In adhering to this structure, your objective is:
               Example:
                 Player (the follower): "Which color washer should I use?"
                 Player (the describer): "Use the green washer."
-        
+
+                Player (the follower): "The cell (1,4) already has a washer. Do I need to place nut in the same cell?"
+                Player (the describer): "Yes, stack it"
+            - If the question is about stacking different shapes in same cell, explicitly state that the new shape is stacked on top.
+          • Make sure to stick to the target grid shapes and their occupancy requirements.
         ---    
         
         

@@ -89,9 +89,9 @@ class PrepareDataForOptimizer:
                 if key == "board_info":
                     continue
                 # Further processing if needed
-                if key == "gen_occupied_cells":
-                    logger.info(f"gen_occupied_cells {value}")
-                    print(f"gen_occupied_cells {value}")
+                #if key == "gen_occupied_cells":
+                #    logger.info(f"gen_occupied_cells {value}")
+                #    print(f"gen_occupied_cells {value}")
                 entry[key] = value
             data_for_optimizer[board_type][object_type][total_shapes][combo_name].append(entry)
         #Sort datdata_for_optimizer by total_shapes
@@ -119,6 +119,7 @@ class PrepareDataForOptimizer:
         data = self.run(base_dir)
         self.save_data(data, output_filepath)
         self.copy_data(output_filepath, "/home/admin/Desktop/codebase/cocobots/testimageccbts_local/clemnew/clembench/cocooptimizer/resources/data/en")
+        print("Data preparation complete.")
 
 if __name__ == "__main__":
     base_dir = "reconstruct-data-pairs"

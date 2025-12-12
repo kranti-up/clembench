@@ -1,5 +1,11 @@
 {
     "max_turns": 10,
+    "use_sandbox_llm": false,
+    "sandbox_llm": {
+        "sandbox_lang": "python",
+        "sandbox_docker_image": "sandbox_llm",
+        "skip_docker_env_setup": true
+    },
     "use_dspy_reconst": false,
     "use_dspy_history": false,
     "use_diff_human_prompts": false,    
@@ -22,7 +28,7 @@
                 "_TRAIN_DATA_FILE_NAME": "train_data_skilltest_5.json",
                 "_TEST_DATA_FILE_NAME": "test_data_skilltest_5.json",
                 "TRAIN_DATA_FILE_NAME": "sb_so_train.json",
-                "TEST_DATA_FILE_NAME": "sb_so_val.json",
+                "TEST_DATA_FILE_NAME": "sb_so_test.json",
                 "STATIC_INCONTEXT_SAMPLES": "sb_so_mt_static_incontext.txt",
                 "NUM_INCONTEXT_SAMPLES": 0
             }          

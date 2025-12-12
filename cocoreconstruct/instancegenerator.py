@@ -6,6 +6,9 @@ import os
 from clemcore.clemgame import GameInstanceGenerator
 from utils.prepareasciirep import PrepareASCIIRep
 
+from llm_sandbox.pool import create_pool_manager, PoolConfig
+from llm_sandbox import SandboxSession
+
 # set the name of the game in the script, as you named the directory
 # this name will be used everywhere, including in the table of results
 #GAME_NAME = "imageccbts"
@@ -54,7 +57,7 @@ class CCBTSReconstInstanceGenerator(GameInstanceGenerator):
             #else:
             promptsdict[key] = self.create_prompt(prompt_template, **fill_labels)
 
-        return promptsdict
+        return promptsdict 
 
 
     def _prepare_samples_labels(self, varconfig: dict) -> Dict[str, str]:
@@ -70,9 +73,7 @@ class CCBTSReconstInstanceGenerator(GameInstanceGenerator):
         #print(varconfig["TRAIN_DATA_FILE_NAME"], varconfig["TEST_DATA_FILE_NAME"])
 
         #No validation samples for human-written instructions
-        train_samples = self.load_json(
-            f'resources/data/{LANGUAGE}/{varconfig["TRAIN_DATA_FILE_NAME"]}'
-        )
+        train_samples = ""#self.load_json(f'resources/data/{LANGUAGE}/{varconfig["TRAIN_DATA_FILE_NAME"]}')
         test_samples = self.load_json(
             f'resources/data/{LANGUAGE}/{varconfig["TEST_DATA_FILE_NAME"]}'
         )
@@ -113,11 +114,11 @@ class CCBTSReconstInstanceGenerator(GameInstanceGenerator):
                                 for combo_name in num_shapes[total_shapes]:
                                     #print(len(num_shapes[total_shapes][combo_name]))
                                     for tsample in num_shapes[total_shapes][combo_name]:
-                                        if tot_instances == 10:
-                                            break
+                                        #if tot_instances == 2:
+                                        #    break
 
-                                        if total_shapes not in ["3"]:# or "b" in combo_name:
-                                            continue
+                                        #if total_shapes not in ["2"]:# or "b" in combo_name:
+                                        #    continue
 
                                         if board_type == "simple":
                                             test_dialogues = tsample["dialogues"]["single_turn"]["instructions"]
@@ -243,6 +244,8 @@ class CCBTSReconstInstanceGenerator(GameInstanceGenerator):
                                         instance["data"]["ascii_rep"] = ascii_rep_board
                                         instance["data"]["boardinfo"] = boardinfo
                                         instance["data"]["boardinfo"].pop("train_samples")
+                                        instance["data"]["sandbox_llm"] = config["sandbox_llm"]
+                                        instance["data"]["use_sandbox_llm"] = config["use_sandbox_llm"]
 
                                         tot_instances += 1
                                     #break
