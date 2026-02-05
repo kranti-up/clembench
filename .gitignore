@@ -1,6 +1,9 @@
 .DS_Store
 .idea/
+.vscode/
 __pycache__/
+*.egg-info/
+venv/
 
 wordle/wordle_keys.json
 *.log
@@ -12,8 +15,6 @@ first_words.txt
 key.json
 # optional game registry
 game_registry.json
-# optional model registry
-model_registry.json
 # custom backends
 *_api.py
 
@@ -22,3 +23,6 @@ mapworld/escapegame/resources/images
 
 # ipynb checkpoints
 .ipynb_checkpoints
+
+# manually configure logging
+logging.yaml
