@@ -1,0 +1,30 @@
+Used skills file: learnedskills_gpt.json
+
+Total Available Skills: 154
+Total Missed Skills: 11
+Total Missmatch Cells Skills: 1
+
+------------------------------------
+
+Missed Skills:
+wbhbhw
+nbhbvw
+bhwns
+wbhbvns
+nbhbh
+bhwn
+bhbvbvs
+bhbvbvws
+bhnbvnw
+wbhbhn
+wbvbhn
+
+
+------------------------------------
+
+Missmatch Cells Skills:
+nnbvw
+
+
+------------------------------------
+
