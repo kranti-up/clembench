@@ -381,7 +381,7 @@ def clear(board):
         """Convert the ground truth code to an ASCII representation."""
         board = self._execute_code(gt_code, board_size)
         if board is None:
-            return None
+            return None, None
 
         occupied_cells = self._list_occupied_cells_with_details(board)
         #print(occupied_cells)

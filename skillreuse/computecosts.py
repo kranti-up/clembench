@@ -19,6 +19,7 @@ class ComputeAPICosts:
             "qwen3-coder-30B": {"input_tokens": 0.07, "output_tokens": 0.27},  # $0.02 per 1K input tokens, $0.04 per 1K output tokens
             "clp-chat-2-t0.0": {"input_tokens": 0.07, "output_tokens": 0.27},  # $0.07 per 1M input tokens, $0.27 per 1M output tokens
             "upgpt-codex-t0.0": {"input_tokens": 1.75, "output_tokens": 14},  # $1.75 per 1M input tokens, $14 per 1M output tokens
+            "human-t0.0": {"input_tokens": 0, "output_tokens": 0},  # $0.00 per 1M input tokens, $0 per 1M output tokens
         }
         return model_costs.get(model, None)
 
@@ -68,8 +69,14 @@ class ComputeAPICosts:
                 elif content.startswith("[[ ## optimized_function ## ]]"):
                     token_role = "cobot-optimizer"                    
                 else:
-                    print(f"Content does not start with expected prefixes: {content} for model {model_name}")
-                    token_role = "unknown"
+                    #print(type(content))
+                    #print(f"Content does not start with expected prefixes: {content} for model {model_name}")
+                    #input()
+                    if "status" in content:
+                        token_role = "cobot"
+                    else:
+                        token_role = "usersimulator"
+                    #token_role = "unknown"
             else:
                 print(f"Message is None or empty in response object: {response_obj.get('choices', '')} for model {model_name}")
                 token_role = "unknown"
@@ -101,9 +108,45 @@ class ComputeAPICosts:
 
         return token_role
 
+    def _process_human_episode(self, model_name, requestsdata, stats):
+        reqcalls = requestsdata["calls"]
+
+        for req in reqcalls:
+            token_usage = req["call"]["raw_response_obj"].get("usage", {})
+            if "prompt_tokens" in token_usage:
+                use_input = "prompt_tokens"
+            elif "input_tokens" in token_usage:
+                use_input = "input_tokens"
+            else:
+                print(f"Suitable key for input tokens is not found {token_usage.keys()}")
+                input()
+
+            if "completion_tokens" in token_usage:
+                use_output = "completion_tokens"
+            elif "output_tokens" in token_usage:
+                use_output = "output_tokens"
+            else:
+                print(f"Suitable key for output tokens is not found {token_usage.keys()}")
+                input()
+
+            input_tokens = token_usage.get(use_input, 0)
+            output_tokens = token_usage.get(use_output, 0)
+            total_tokens = token_usage.get("total_tokens", 0)
+
+            token_role = self._parse_messagetext(req["call"]["raw_response_obj"], model_name)
+
+            stats[token_role]["input_tokens"] += input_tokens
+            stats[token_role]["output_tokens"] += output_tokens
+            stats[token_role]["total_tokens"] += total_tokens
+            stats[token_role]["num_calls"] += 1
+
 
     def process_episode(self, model_name, episode_path: str) -> Dict[str, Any]:
-        requests_path = os.path.join(episode_path, "requests.json")
+        if "human" in model_name.lower():
+            usefilename = "player_2.requests.json"
+        else:
+            usefilename = "requests.json"
+        requests_path = os.path.join(episode_path, usefilename)
 
         requestsdata = None
         stats = {"usersimulator": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "num_calls": 0},
@@ -129,6 +172,9 @@ class ComputeAPICosts:
             input()
             return stats
 
+        if "human" in model_name.lower():
+            self._process_human_episode(model_name, requestsdata, stats)
+            return stats
 
         for req in requestsdata:
             if "raw_response_obj" not in req:
@@ -163,6 +209,23 @@ class ComputeAPICosts:
 
         return stats
 
+    def getskillepnums(self, base_dir, modelname):
+        filename = f"{base_dir}/{modelname}_skillreuse_zs_skillavaileps.json"
+        with open(filename, 'r') as file:
+            data = json.load(file)
+        return data
+
+    def getnoskillepnums(self, base_dir, modelname, useclp=False):
+        usemodel = "clp" if useclp else "gpt"
+        filename = f"{base_dir}/{modelname}_skillreuse_zs_noskill_eps_{usemodel}.json"
+        try:
+            with open(filename, 'r') as file:
+                data = json.load(file)
+        except FileNotFoundError:
+            print(f"File not found: {filename}")
+            data = []
+        return data
+
     def run(self, base_dir):
         if not base_dir:
             raise ValueError("Basedir must be provided.")
@@ -179,6 +242,11 @@ class ComputeAPICosts:
                 continue
             costinfo[model] = {}
 
+            skillepnums = self.getskillepnums(base_dir, model)
+            noskillepnums_clp = self.getnoskillepnums(base_dir, model, useclp=True)
+            noskillepnums_gpt = self.getnoskillepnums(base_dir, model, useclp=False)
+
+
             for game in os.listdir(model_path):
                 game_path = os.path.join(model_path, game)
                 if not os.path.isdir(game_path):
@@ -191,7 +259,7 @@ class ComputeAPICosts:
                     if not os.path.isdir(exp_path):
                         continue
 
-                    costinfo[model][game][exp] = {}
+                    costinfo[model][game][exp] = {"overall": {}}#, "skills": {}, "no_skills": {}}
 
                     episodes = [d for d in os.listdir(exp_path) if os.path.isdir(os.path.join(exp_path, d))]
                     num_episodes = len(episodes)
@@ -200,6 +268,30 @@ class ComputeAPICosts:
                                    "cobot-optimizer":{"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "num_calls": 0},
                                    "unknown": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "num_calls": 0}
                                    }
+                    token_stats_skills_avail = {"usersimulator": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "num_calls": 0},
+                                   "cobot": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "num_calls": 0},
+                                   "cobot-optimizer":{"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "num_calls": 0},
+                                   "unknown": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "num_calls": 0}
+                                   }
+                    token_stats_skills_notavail = {"usersimulator": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "num_calls": 0},
+                                   "cobot": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "num_calls": 0},
+                                   "cobot-optimizer":{"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "num_calls": 0},
+                                   "unknown": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "num_calls": 0}
+                                   }                    
+
+                    token_stats_noskills_clp = {"usersimulator": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "num_calls": 0},
+                                   "cobot": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "num_calls": 0},
+                                   "cobot-optimizer":{"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "num_calls": 0},
+                                   "unknown": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "num_calls": 0}
+                                   }                    
+
+                    token_stats_noskills_gpt = {"usersimulator": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "num_calls": 0},
+                                   "cobot": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "num_calls": 0},
+                                   "cobot-optimizer":{"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "num_calls": 0},
+                                   "unknown": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "num_calls": 0}
+                                   }                    
+
+
                     for episode in episodes:
                         episode_path = os.path.join(exp_path, episode)
                         ep_stats = self.process_episode(model, episode_path)
@@ -207,29 +299,57 @@ class ComputeAPICosts:
                         for role, stats in ep_stats.items():
                             for key, value in stats.items():
                                 token_stats[role][key] += value
-                    print(f"Model: {model}, Game: {game}, Exp: {exp}, Num Episodes: {num_episodes}, Token Stats: {token_stats}")
-                    use_model_name = model#"anthropic/claude-sonnet-4.5"#"openai/gpt-5.2-codex"#"anthropic/claude-sonnet-4.5"
-                    us_cost = self.computecosts(use_model_name, token_stats["usersimulator"]["input_tokens"], token_stats["usersimulator"]["output_tokens"], "usersimulator")
-                    cobot_cost = self.computecosts(use_model_name, token_stats["cobot"]["input_tokens"], token_stats["cobot"]["output_tokens"], "cobot")
-                    if "cobot-optimizer" in token_stats and (token_stats["cobot-optimizer"]["input_tokens"] > 0 or token_stats["cobot-optimizer"]["output_tokens"] > 0):
-                        cobot_optim_cost = self.computecosts(use_model_name, token_stats["cobot-optimizer"]["input_tokens"], token_stats["cobot-optimizer"]["output_tokens"], "cobot-optimizer") 
-                    else:
-                        cobot_optim_cost = 0
-                    if "unknown" in token_stats and (token_stats["unknown"]["input_tokens"] > 0 or token_stats["unknown"]["output_tokens"] > 0):
-                        print(f"Computing cost for unknown tokens with token stats {token_stats['unknown']}")
-                        unknown_cost = self.computecosts(use_model_name, token_stats["unknown"]["input_tokens"], token_stats["unknown"]["output_tokens"], "unknown")
-                    else:
-                        unknown_cost = 0
-                    total_cost = sum(cost for cost in [us_cost, cobot_cost, cobot_optim_cost, unknown_cost] if cost is not None)
-                    print(f"Model: {use_model_name}, Game: {game}, Exp: {exp}, Total Cost: ${total_cost:.2f} (User Simulator: ${us_cost:.2f}, CoBot: ${cobot_cost:.2f}, Cobot-Optimizer: ${cobot_optim_cost:.2f}, Unknown: ${unknown_cost:.2f})")
-                    costinfo[model][game][exp] = {"total_cost": total_cost, "user_simulator_cost": us_cost, "cobot_cost": cobot_cost, "cobot_optim cost": cobot_optim_cost, "unknown_cost": unknown_cost, "token_stats": token_stats}
 
-        with open("costinfo.json", 'w', encoding='utf-8') as file:
+                                if episode in skillepnums:
+                                    token_stats_skills_avail[role][key] += value
+                                else:
+                                    token_stats_skills_notavail[role][key] += value
+
+                                if episode in noskillepnums_clp:
+                                    token_stats_noskills_clp[role][key] += value
+                                if episode in noskillepnums_gpt:
+                                    token_stats_noskills_gpt[role][key] += value
+
+                    #print(f"Model: {model}, Game: {game}, Exp: {exp}, Num Episodes: {num_episodes}, Token Stats: {token_stats}")
+                    use_model_name = model#"anthropic/claude-sonnet-4.5"#"openai/gpt-5.2-codex"#"anthropic/claude-sonnet-4.5"
+
+                    for stats_type in ["overall", "skills_avail", "skills_notavail", "noskills_clp", "noskills_gpt"]:
+                        if stats_type == "overall":
+                            token_stats_to_use = token_stats
+                        elif stats_type == "skills_avail":
+                            token_stats_to_use = token_stats_skills_avail
+                        elif stats_type == "skills_notavail":
+                            token_stats_to_use = token_stats_skills_notavail
+                        elif stats_type == "noskills_clp":
+                            token_stats_to_use = token_stats_noskills_clp
+                        elif stats_type == "noskills_gpt":
+                            token_stats_to_use = token_stats_noskills_gpt
+                        else:
+                            print(f"Unknown stats type {stats_type}")
+                            input()
+                            continue
+
+                        us_cost = self.computecosts(use_model_name, token_stats_to_use["usersimulator"]["input_tokens"], token_stats_to_use["usersimulator"]["output_tokens"], "usersimulator")
+                        cobot_cost = self.computecosts(use_model_name, token_stats_to_use["cobot"]["input_tokens"], token_stats_to_use["cobot"]["output_tokens"], "cobot")
+                        if "cobot-optimizer" in token_stats_to_use and (token_stats_to_use["cobot-optimizer"]["input_tokens"] > 0 or token_stats_to_use["cobot-optimizer"]["output_tokens"] > 0):
+                            cobot_optim_cost = self.computecosts(use_model_name, token_stats_to_use["cobot-optimizer"]["input_tokens"], token_stats_to_use["cobot-optimizer"]["output_tokens"], "cobot-optimizer") 
+                        else:
+                            cobot_optim_cost = 0
+                        if "unknown" in token_stats_to_use and (token_stats_to_use["unknown"]["input_tokens"] > 0 or token_stats_to_use["unknown"]["output_tokens"] > 0):
+                            print(f"Computing cost for unknown tokens with token stats {token_stats_to_use['unknown']}")
+                            unknown_cost = self.computecosts(use_model_name, token_stats_to_use["unknown"]["input_tokens"], token_stats_to_use["unknown"]["output_tokens"], "unknown")
+                        else:
+                            unknown_cost = 0
+                        total_cost = sum(cost for cost in [us_cost, cobot_cost, cobot_optim_cost, unknown_cost] if cost is not None)
+                        print(f"Model: {use_model_name}, Game: {game}, Exp: {exp}, StatsType: {stats_type}, \n Total Cost: ${total_cost:.2f} (User Simulator: ${us_cost:.2f}, CoBot: ${cobot_cost:.2f}, Cobot-Optimizer: ${cobot_optim_cost:.2f}, Unknown: ${unknown_cost:.2f})\n\n")
+                        costinfo[model][game][exp][stats_type] = {"total_cost": round(total_cost, 2), "user_simulator_cost": round(us_cost, 2), "cobot_cost": round(cobot_cost, 2), "cobot_optim cost": round(cobot_optim_cost, 2), "unknown_cost": round(unknown_cost, 2), "token_stats": token_stats_to_use}
+
+        with open(f"{base_dir}/costinfo.json", 'w', encoding='utf-8') as file:
             json.dump(costinfo, file, indent=4)
 
         
 
 if __name__ == "__main__":
-    base_dir = "/home/admin/Desktop/codebase/cocobots/testimageccbts_local/clemnew/clembench/skillreuse/rp_gptskills_clp_4"
+    base_dir = "rp_noskills_gpt_clp_4"
     compute_costs = ComputeAPICosts()
     compute_costs.run(base_dir)

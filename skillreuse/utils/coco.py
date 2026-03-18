@@ -576,7 +576,7 @@ def move(board, x1, y1, x2, y2, shapes_list=None):
         raise (DimensionsMismatchError(f"Destination location ({x2_+1}, {y2_+1}) out of bounds"))
     
     if x1_ == x2_ and y1_ == y2_:
-        raise (ValueError("Source and destination locations are the same"))
+        raise (ValueError(f"Source ({x1_+1}, {y1_+1}) and destination ({x2_+1}, {y2_+1}) locations are the same"))
     
     if shapes_list is not None and len(shapes_list) == 0:
         raise (ValueError("Shapes list cannot be empty"))
@@ -585,7 +585,7 @@ def move(board, x1, y1, x2, y2, shapes_list=None):
         new_layer_len = len(shapes_list)
         cur_max_top_layer = get_total_occupied_layers(board, x1_, y1_)
         if cur_max_top_layer < new_layer_len:
-            raise (ValueError(f"Not enough shapes at location ({x1_+1}, {y1_+1}) to move"))
+            raise (ValueError(f"No shapes to move at location ({x1_+1}, {y1_+1})."))
         start_range = cur_max_top_layer - new_layer_len
         end_range = cur_max_top_layer
 
@@ -597,7 +597,7 @@ def move(board, x1, y1, x2, y2, shapes_list=None):
         cur_max_top_layer = get_total_occupied_layers(board, x1_, y1_)
         new_layer_len = 1
         if cur_max_top_layer < new_layer_len:
-            raise (ValueError(f"Not enough shapes at location ({x1_+1}, {y1_+1}) to move"))
+            raise (ValueError(f"No shapes to move at location ({x1_+1}, {y1_+1})."))
 
         start_range = cur_max_top_layer-1
         end_range = start_range+1
