@@ -184,14 +184,14 @@ class ComputeAPICosts:
                     unknown_cost = self.computecosts(use_model_name, token_stats["unknown"]["input_tokens"], token_stats["unknown"]["output_tokens"])
                     total_cost = sum(cost for cost in [us_cost, cobot_cost, cobot_optim_cost, unknown_cost] if cost is not None)
                     print(f"Model: {use_model_name}, Game: {game}, Exp: {exp}, Total Cost: ${total_cost:.2f} (User Simulator: ${us_cost:.2f}, CoBot: ${cobot_cost:.2f}, Cobot-Optimizer: ${cobot_optim_cost:.2f}, Unknown: ${unknown_cost:.2f})")
-                    costinfo[model][game][exp] = {"total_cost": total_cost, "user_simulator_cost": us_cost, "cobot_cost": cobot_cost, "cobot_optim cost": cobot_optim_cost, "unknown_cost": unknown_cost, "token_stats": token_stats}
+                    costinfo[model][game][exp] = {"total_cost": round(total_cost, 2), "user_simulator_cost": round(us_cost, 2), "cobot_cost": round(cobot_cost, 2), "cobot_optim cost": round(cobot_optim_cost, 2), "unknown_cost": round(unknown_cost, 2), "token_stats": token_stats}
 
-        with open("costinfo.json", 'w', encoding='utf-8') as file:
+        with open(f"{base_dir}/costinfo.json", 'w', encoding='utf-8') as file:
             json.dump(costinfo, file, indent=4)
 
         
 
 if __name__ == "__main__":
-    base_dir = "rskills_clp_2"
+    base_dir = "rskills_gpt_2"
     compute_costs = ComputeAPICosts()
     compute_costs.run(base_dir)

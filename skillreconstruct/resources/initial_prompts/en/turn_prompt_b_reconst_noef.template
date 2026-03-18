@@ -1,0 +1,15 @@
+[[ ## prompt ## ]]
+TASK:
+1. Review the previous state and new user input
+2. Identify missing or unclear information
+
+RESPONSE RULES:
+3. Every response must follow the below JSON format
+{
+    "status": "clarification", "acknowledgement" or "code",
+    "details": Python code when status="code", or plain text when status="clarification" or "acknowledgement"
+}
+4. Ensure the generated code (in "details") can be executed by Python `exec()`, e.g.: no trailing commas, no periods, etc.
+5. Do not generate any other text/explanations.
+
+Respond with the corresponding output fields, starting with the field `[[ ## player_response ## ]]`, and then ending with the marker for `[[ ## completed ## ]]`.

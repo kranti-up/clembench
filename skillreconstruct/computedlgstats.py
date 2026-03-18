@@ -130,29 +130,43 @@ def process_episode(episode_path: str, statsdict) -> Dict[str, Any]:
     if interdata["overall_loss"]:
         statsdict["faileps"].append({"reconst_status": interdata["reconst_success"], "optim_success": interdata["optim_success"], "episode_num": episode_num, "reconst_play_turns": play_turns, "optim_play_turns": optim_play_turns})
         statsdict["shape_stats"][interdata["num_shapes"]]["faileps"] += 1
+        statsdict["shape_stats"][interdata["num_shapes"]]["play_turns"].append({"episode_num": episode_num, "reconst_turns": play_turns, "optim_turns": optim_play_turns, "status": "failure"})
 
     elif interdata["overall_success"]:
         statsdict["successeps"].append({"reconst_status": interdata["reconst_success"], "optim_success": interdata["optim_success"],"episode_num": episode_num, "reconst_play_turns": play_turns, "optim_play_turns": optim_play_turns})
         statsdict["shape_stats"][interdata["num_shapes"]]["successeps"] += 1
+        statsdict["shape_stats"][interdata["num_shapes"]]["play_turns"].append({"episode_num": episode_num, "reconst_turns": play_turns, "optim_turns": optim_play_turns, "status": "success"})        
 
     elif interdata["overall_abort"]:
         statsdict["aborteps"].append({"reconst_status": interdata["reconst_success"], "optim_success": interdata["optim_success"], "episode_num": episode_num, "reconst_play_turns": play_turns, "optim_play_turns": optim_play_turns})
         statsdict["shape_stats"][interdata["num_shapes"]]["aborteps"] += 1
+        statsdict["shape_stats"][interdata["num_shapes"]]["play_turns"].append({"episode_num": episode_num, "reconst_turns": play_turns, "optim_turns": optim_play_turns, "status": "abort"})        
 
 
     if interdata["gencfq"] and interdata["used_clarification"] == False:
         print(f"Difference between cfq flag and genresponse for episode: {episode_num}")
         input()
 
-
+    code_stats = {"move": 0, "remove": 0, "clear": 0, "undo": 0}
+    if interdata["gencode"]:
+        for turnnum, codedata in interdata["gencode"].items():
+            if codedata:
+                if "move(" in codedata:
+                    code_stats["move"] += 1
+                if "remove(" in codedata:
+                    code_stats["remove"] += 1
+                if "clear(" in codedata:
+                    code_stats["clear"] += 1
+                if "undo(" in codedata:
+                    code_stats["undo"] += 1
 
     if interdata["used_clarification"]:
-        statsdict["clarification_eps"].append({interdata["num_shapes"]:{interdata["comboname"]:{episode_num:play_turns, "success": interdata["overall_success"], "abort": interdata["overall_success"]}}})
+        statsdict["clarification_eps"].append({interdata["num_shapes"]:{interdata["comboname"]:{episode_num:play_turns, "success": interdata["overall_success"], "abort": interdata["overall_abort"]}}})
 
-    if interdata["used_remove"] or interdata["used_move"] or interdata["used_clear"]:
-        statsdict["correction_eps"].append({interdata["num_shapes"]:{interdata["comboname"]:{episode_num:play_turns, "success": interdata["overall_success"], "abort": interdata["overall_success"]}}})
+    if interdata["used_remove"] or interdata["used_move"] or interdata["used_clear"] or code_stats["move"] or code_stats["remove"] or code_stats["clear"]:
+        statsdict["correction_eps"].append({interdata["num_shapes"]:{interdata["comboname"]:{episode_num:play_turns, "success": interdata["overall_success"], "abort": interdata["overall_abort"], "code_stats": code_stats}}})
 
-    if interdata["used_undo"]:
+    if interdata["used_undo"] or code_stats["undo"]:
         statsdict["undo_eps"].append({episode_num:play_turns})
 
     statsdict["num_turns"].append({episode_num:play_turns})
@@ -165,6 +179,45 @@ def process_episode(episode_path: str, statsdict) -> Dict[str, Any]:
     statsdict["num_turns_code_gen"].append({episode_num:{len(interdata["gencode"]): interdata["gencode"]}})
 
 
+
+
+def _process_shape_data(expstats):
+    if expstats is None:
+        return
+    
+    totalepisodes = {2: 10, 3: 34, 4: 73, 5: 48}
+    shapedata = expstats["shape_stats"]
+    for numshape in totalepisodes:
+        shapedata[numshape]["successrate"] = round((shapedata[numshape]["successeps"]/totalepisodes[numshape]), 2)
+        shapedata[numshape]["abortrate"] = round((shapedata[numshape]["aborteps"]/totalepisodes[numshape]), 2)
+        shapedata[numshape]["failurerate"] = round((shapedata[numshape]["faileps"]/totalepisodes[numshape]), 2)
+
+    shapedata["overall"] = {}
+    for numshape in totalepisodes:
+        shapedata["overall"][numshape] = shapedata[numshape]["successrate"]
+
+    for numshape in totalepisodes:
+        reconst_turns = []
+        optim_turns = []
+        for status in ["success", "abort", "failure"]:
+            for data in shapedata[numshape]["play_turns"]:
+                if data["status"] != status:
+                    continue
+                reconst_turns.append(data["reconst_turns"])
+                optim_turns.append(data["optim_turns"])
+            min_reconst_turns, max_reconst_turns = np.min(reconst_turns), np.max(reconst_turns)
+            median_reconst_turns, avg_reconst_turns = int(np.median(reconst_turns)), round(np.mean(reconst_turns), 2)
+
+            min_optim_turns, max_optim_turns = np.min(optim_turns), np.max(optim_turns)
+            median_optim_turns, avg_optim_turns = int(np.median(optim_turns)), round(np.mean(optim_turns), 2)
+
+            shapedata[numshape][status] = {"reconst": {"min": int(min_reconst_turns), "max": int(max_reconst_turns),
+                                                        "median": int(median_reconst_turns), "average": float(avg_reconst_turns)},
+                                                        "optim": {"min": int(min_optim_turns), "max": int(max_optim_turns),
+                                                        "median": int(median_optim_turns), "average": float(avg_optim_turns)}}
+    return shapedata
+
+
 def _process_correction_data(expstats):
     if expstats is None:
         return
@@ -174,23 +227,44 @@ def _process_correction_data(expstats):
     num_abort = 0
     num_failure = 0
     corrdata = {}
+    corr_success_per_shape = {}    
     for data in correpisodes:
         shapeval = list(data.keys())[0]
         if shapeval not in corrdata:
             corrdata[shapeval] = {}
+        if shapeval not in corr_success_per_shape:
+            corr_success_per_shape[shapeval] = {"successep": 0, "abortep": 0, "failureep": 0}            
         combodata = data[shapeval]
         comboname = list(combodata.keys())[0]
         if comboname not in corrdata[shapeval]:
             corrdata[shapeval][comboname] = {}
         if combodata[comboname]["success"]:
             num_success+=1
+            corr_success_per_shape[shapeval]["successep"] += 1            
         elif combodata[comboname]["abort"]:
             num_abort+=1
+            corr_success_per_shape[shapeval]["abortep"] += 1
         else:
             num_failure+=1
+            corr_success_per_shape[shapeval]["failureep"] += 1
         combodata[comboname].pop("success")
         combodata[comboname].pop("abort")
         corrdata[shapeval][comboname].update(combodata[comboname])  
+
+    for shapeval in corr_success_per_shape:
+        toteps = corr_success_per_shape[shapeval]["successep"] + corr_success_per_shape[shapeval]["abortep"] + corr_success_per_shape[shapeval]["failureep"]
+
+        if toteps:
+            success = round((corr_success_per_shape[shapeval]["successep"]/toteps),3)
+            abort = round((corr_success_per_shape[shapeval]["abortep"]/toteps),3)
+            failure = round((corr_success_per_shape[shapeval]["failureep"]/toteps),3)
+        else:
+            success = 0
+            abort = 0
+            failure = 0
+        corr_success_per_shape[shapeval]["success"] = success
+        corr_success_per_shape[shapeval]["abort"] = abort
+        corr_success_per_shape[shapeval]["failure"] = failure
 
     corr_counts_per_shape = {}
     corr_turns_per_shape = {}
@@ -210,7 +284,8 @@ def _process_correction_data(expstats):
 
 
     corrdetails = {"num_corr_eps": len(correpisodes), "num_success": num_success, "num_abort": num_abort, "num_failure": num_failure,
-                   "details": {"corr_counts_per_shape": corr_counts_per_shape, "corr_turns_per_shape": corr_turns_per_shape, "corr_eps_per_shape": corr_eps_per_shape, "corr_combos_per_shape": corr_combos_per_shape}}
+                   "details": {"corr_counts_per_shape": corr_counts_per_shape, "corr_turns_per_shape": corr_turns_per_shape, "corr_eps_per_shape": corr_eps_per_shape, "corr_combos_per_shape": corr_combos_per_shape,
+                    "corr_success_per_shape": corr_success_per_shape,}}
 
     if len(correpisodes):
         corrdetails["success"] = round((num_success/len(correpisodes)),3)
@@ -528,10 +603,10 @@ def compute_scores(base_dir: str, verbose: bool = True) -> Dict[str, Any]:
                             "gencode": [], "geninstructions": [], "num_turns_code_gen": [], "num_episodes": num_episodes,
                             "skillavailepscnt": 0, "skillnotavailepscnt": 0, "skillsfilename": {}, "skillavailcombos": [],
                             "skillnotavailcombos": [],
-                            "shape_stats":{2: {"successeps": 0, "aborteps": 0, "faileps": 0},
-                                           3: {"successeps": 0, "aborteps": 0, "faileps": 0},
-                                           4: {"successeps": 0, "aborteps": 0, "faileps": 0},
-                                           5: {"successeps": 0, "aborteps": 0, "faileps": 0}},}
+                            "shape_stats":{2: {"successeps": 0, "aborteps": 0, "faileps": 0, "play_turns": []},
+                                           3: {"successeps": 0, "aborteps": 0, "faileps": 0, "play_turns": []},
+                                           4: {"successeps": 0, "aborteps": 0, "faileps": 0, "play_turns": []},
+                                           5: {"successeps": 0, "aborteps": 0, "faileps": 0, "play_turns": []}},}
                 combonamestats = {"skillavail": set(), "skillnotavail": set()}
 
                 for episode in episodes:
@@ -540,20 +615,22 @@ def compute_scores(base_dir: str, verbose: bool = True) -> Dict[str, Any]:
                     #checkdiffbwskillstest(episode_path, combonamestats)
                 overall_stats = _process_overall(expstats)
                 reconst_optim_stats = _process_reconst_optim_stats(expstats)
+                shape_stats = _process_shape_data(expstats)
                 cfq_details = _process_cfq_data(expstats)
                 corr_details = _process_correction_data(expstats)
                 #_process_combo_diff(expstats, combonamestats)
                 results[game][model][exp] = {"overall_stats": overall_stats, "reconst_optim_stats": reconst_optim_stats,
-                                             "clarifications": cfq_details, "corrections": corr_details,}
+                                             "clarifications": cfq_details, "corrections": corr_details, "shape_stats": shape_stats}
 
     with open(f"{base_dir}/overallstats.json", 'w', encoding='utf-8') as file:
         json.dump(results, file, indent=4)
 
 def main():
     parser = argparse.ArgumentParser(description="Compute overall scores from experiment directories")
-    parser.add_argument("base_dir", nargs="?", default="/home/admin/Desktop/codebase/cocobots/testimageccbts_local/clemnew/clembench/skillreconstruct/rskills_clp_2", help="Base directory containing model results")
+    parser.add_argument("base_dir", nargs="?", default="rskills_gpt_2", help="Base directory containing model results")
     parser.add_argument("--quiet", action="store_true", help="Suppress verbose printing")
     args = parser.parse_args()
+
 
     compute_scores(args.base_dir, verbose=not args.quiet)
 

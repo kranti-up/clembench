@@ -437,6 +437,7 @@ class SkillReconstMaster(DialogueGameMaster):
 
                 elif self.current_task == "reconst":
                     self._set_pass_turn(self.player_b, True)
+                    #self._handle_singleturn_reconst()
                 self.correct_response = True
                 # increment current turn:
                 self.current_turn += 1
@@ -1013,6 +1014,41 @@ class SkillReconstMaster(DialogueGameMaster):
             result["error"] = "The generated board does not match the ground truth."
 
         return result
+    
+    def _handle_singleturn_reconst(self):
+        logger.info(f"Current turn: {self.current_task_turns}, Received 'DONE' from player A, validating the game.")
+        parse_a, p2_prompt = self._handle_task_completion()
+        logger.info(f"output of task completion: parse_a: {parse_a}")
+        if parse_a["status"] == "on-going":
+            if self.use_optimizer:
+                if self.current_task == "optim":
+                    self.set_context_for(self.player_b, p2_prompt)
+                    #Is this really required? As Player B should be called from here
+                    #logger.info(f"Setting pass turn for Player {self.player_b} as false")
+                    #self._set_pass_turn(self.player_b, False)
+                else:#if self.current_task == "repeat":
+                    #This scenario is optim completed and moving to reuse/repeat
+                    logger.error(f"Invalid status received in task completion: {parse_a['status']}\n{p2_prompt}")
+                    self._set_pass_turn(self.player_a, False)
+                    parse_a["status"] = "failure"                       
+            else:
+                #if self.current_task == "reuse":
+                logger.error(f"Invalid status received in task completion: {parse_a['status']}\n{p2_prompt}")
+                self._set_pass_turn(self.player_a, False)
+                parse_a["status"] = "failure"
+            
+        elif parse_a["status"] == "success":
+            logger.info(f"Current Task: {self.current_task}, Optimizer Status: {self.use_optimizer}")
+            if (self.use_optimizer and self.current_task == "optim") or (not self.use_optimizer and self.current_task == "reconst"):
+                game_status = "All tasks completed successfully."
+                logger.info(game_status)
+                action = {'type': 'info', 'content': game_status}
+                self.log_event(from_='GM', to='GM', action=action)
+            else:
+                error = f"Unexpected success status received before completing all tasks. Current task: {self.current_task}"
+                logger.error(error)
+                parse_a["status"] = "failure"
+                raise GameError(error)        
 
 
     def _parse_response(self, player: Player, response: str) -> str:

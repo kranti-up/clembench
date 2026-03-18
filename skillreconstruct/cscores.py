@@ -150,7 +150,7 @@ def compute_scores(base_dir: str, verbose: bool = True) -> Dict[str, Any]:
 
 def main():
     parser = argparse.ArgumentParser(description="Compute overall scores from experiment directories")
-    parser.add_argument("base_dir", nargs="?", default="/home/admin/Desktop/codebase/cocobots/testimageccbts_local/clemnew/clembench/skillreconstruct/rskills_clp_2", help="Base directory containing model results")
+    parser.add_argument("base_dir", nargs="?", default="rskills_clp_2", help="Base directory containing model results")
     parser.add_argument("--quiet", action="store_true", help="Suppress verbose printing")
     args = parser.parse_args()
 
