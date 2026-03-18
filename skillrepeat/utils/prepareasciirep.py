@@ -191,6 +191,7 @@ class PrepareASCIIRep:
             logger.error("Traceback:\n%s", traceback.format_exc())            
             return None, str(e), None       
         #board = env.get("board", board)
+        plot_board(board, "after_skill_execution.png")
         return board, None, None
 
 
@@ -316,18 +317,19 @@ def clear(board):
         occupied_cells = self._list_occupied_cells_with_details(board)
         return occupied_cells
     
-    def _list_occupied_cells_with_repeats(self, combo_name: str, colors: list, repeat_locations: list):
+    def _list_occupied_cells_with_repeats(self, combo_name_list: list, colors_list: list, repeat_locations_list: list):
         occupied_cells = {}
-        for location in repeat_locations:
-            row, col = location[0]-1, location[1]-1
-            if f"{row}:{col}" in occupied_cells:
-                #print(f"Multiple objects at location {row},{col} for combo {combo_name}")
-                #input()
-                logger.info(f"Multiple objects at location {row},{col} for combo {combo_name}")
-            occupied_cells[f"{row}:{col}"] = [(combo_name, f"{colors}")]
+        for combo_name, colors, repeat_locations in zip(combo_name_list, colors_list, repeat_locations_list):
+            for location in repeat_locations:
+                row, col = int(location[0])-1, int(location[1])-1
+                if f"{row}:{col}" in occupied_cells:
+                    #print(f"Multiple objects at location {row},{col} for combo {combo_name}")
+                    #input()
+                    logger.info(f"Multiple objects at location {row},{col} for combo {combo_name}")
+                occupied_cells[f"{row}:{col}"] = [(combo_name, f"{colors}")]
         return occupied_cells 
 
-    def get_layer_representation_rb_reuse(self, combo_name: str, colors: list, repeat_locations: list):
+    def get_layer_representation_rb_reuse(self, combo_name_list: list, colors_list: list, repeat_locations_list: list):
         # No stacking of the objects, so only one layer
         layer_rep = "Grid levels (bottom to top):\n"
         max_layers = 1
@@ -335,9 +337,11 @@ def clear(board):
         layers_info = {}
         for layer in range(max_layers):
             layers_info[layer+1] = []     
-            for loc in repeat_locations:
-                row = loc[0]
-                col = loc[1]
+            for index, loc in enumerate(repeat_locations_list):
+                row = loc[0][0]
+                col = loc[0][1]#loc[1]
+                combo_name = combo_name_list[index]
+                colors = colors_list[index]
                 shape_info = {"shapes": f"[{combo_name}]", "colors": f"{colors}"}
                 use_key = f"row: {row}, col: {col}"
                 layers_info[layer+1].append(f"{use_key}: {shape_info}")
@@ -372,9 +376,13 @@ def clear(board):
         
         occupied_cells = self._list_occupied_cells_with_details(board)
 
-        occupied_cells_repeat = self._list_occupied_cells_with_repeats(combo_name, colors, repeat_locations)
+        #_list_occupied_cells_with_repeats() expects lists of combo names, colors, and repeat locations, so we wrap them in lists to maintain compatibility with potential multiple combos in the future
+        occupied_cells_repeat = self._list_occupied_cells_with_repeats([combo_name], [colors], [repeat_locations])
 
-        layer_rep = self.get_layer_representation_rb_reuse(combo_name, colors, repeat_locations)
+        repeat_locations_list = [[loc] for loc in repeat_locations]
+        combo_name_list = [combo_name]*len(repeat_locations)
+        colors_list = [colors]*len(repeat_locations)
+        layer_rep = self.get_layer_representation_rb_reuse(combo_name_list, colors_list, repeat_locations_list)
         return layer_rep, board, occupied_cells, occupied_cells_repeat       
 
     def get_ascii_representation(self, gt_code: dict, board_size: dict) -> str:
@@ -423,10 +431,10 @@ def clear(board):
         return ascii_representation, board
 
 
-    def get_ascii_representation_from_combo_names(self, board: str, board_size: dict, reuse_skills: list, funcdef: str) -> str:
+    def get_ascii_representation_from_combo_names(self, board: np.ndarray, board_size: dict, reuse_skills: list, funcdef: str) -> str:
         """Generate an ASCII representation from the board state."""
         if board is None or board_size is None or not reuse_skills:
-            logger.info(f"Board generation call is None, cannot generate ASCII representation.")
+            logger.info(f"Board generation (info, reuse skills) are None, cannot generate ASCII representation.")
             error = "Invalid input for generating ASCII representation from combo names."
             return None, error, None, None
         logger.debug(f"Generating ASCII representation from the board generation call.")
@@ -451,11 +459,15 @@ def clear(board):
 
             # TODO: Because only the first name, colors are taken, if there are issues in other locations, it is misleading to same values -> Fix this
             combo_name = reuse_skills[0]['name']
+            combo_name_list = [skill['name'] for skill in reuse_skills]
             combo_colors = reuse_skills[0]['colors']
+            combo_colors_list = [skill['colors'] for skill in reuse_skills]
             repeat_locations = [[skill['x'],skill['y']] for skill in reuse_skills]
-            occupied_cells_repeat = self._list_occupied_cells_with_repeats(combo_name, combo_colors, repeat_locations)
+            repeat_locations_list = [[[skill['x'],skill['y']]] for skill in reuse_skills]
 
-            layer_rep = self.get_layer_representation_rb_reuse(combo_name, combo_colors, repeat_locations)
+            occupied_cells_repeat = self._list_occupied_cells_with_repeats(combo_name_list, combo_colors_list, repeat_locations_list)
+            logger.info(f"Calling get_layer_representation_rb_reuse()")
+            layer_rep = self.get_layer_representation_rb_reuse(combo_name_list, combo_colors_list, repeat_locations_list)
             return layer_rep, board, occupied_cells, occupied_cells_repeat 
         except Exception as e:
             logger.error(f"Error executing reuse skill: {e}")
@@ -640,7 +652,10 @@ def clear(board):
         return diff_rep
 
 
-    def get_func_details(self, repeat_code, combo_name):        
+    def get_func_details(self, repeat_code, combo_name):
+        if combo_name not in repeat_code:
+            return [], [], [], [], None
+
         func_header = f"def {combo_name}(board, colors, x, y):\n\tcoordinates.append((x, y))\n\tcolorslist.append(colors)\n"
         coordinates = []
         colorslist = []
@@ -654,7 +669,7 @@ def clear(board):
         rcode_lines = repeat_code.strip().split('\n')
         updatedrcode = []
         for line in rcode_lines:
-            if line.strip().startswith("clear" + "(") or line.strip().startswith("remove" + "(") or line.strip().startswith("move" + "("):
+            if line.strip().startswith("clear" + "(") or line.strip().startswith("removeshape" + "(") or line.strip().startswith("move" + "(") or line.strip().startswith("put" + "(") or line.strip().startswith("undo" + "("):
                 continue
             else:
                 updatedrcode.append(line)
@@ -665,7 +680,13 @@ def clear(board):
 
         outcode = func_header + use_repeat_code
         logger.info(f"Executing function code:\n{outcode}")
-        exec(outcode, ns)
+        try:
+            exec(outcode, ns)
+        except Exception as e:
+            logger.error(f"Error occurred while executing function code:\n{outcode}")
+            logger.error(f"Error: {e}")
+            return None, None, None, None, str(e)
+
         if isinstance(coordinates, list) and len(coordinates) == 0:
             logger.info(f"No coordinates found for combo_name: {combo_name}, repeat_code:\n{repeat_code}")
 
@@ -677,7 +698,7 @@ def clear(board):
         x_list = [coord[0] for coord in coordinates]
         y_list = [coord[1] for coord in coordinates]
 
-        return func_name_list, func_colors_list, x_list, y_list   
+        return func_name_list, func_colors_list, x_list, y_list, None
 
 
     def saveboard(self, board, filename):

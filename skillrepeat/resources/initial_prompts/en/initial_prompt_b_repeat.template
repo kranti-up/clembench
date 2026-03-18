@@ -286,7 +286,25 @@ Your updated objective is:
         
         ---        
 
-        
+        Error Handling and Code Generation Rules
+          • If executing the generated code triggers a compilation error and resolving it requires additional information, ask the user for clarification.
+          • Do not repeatedly generate the same code across multiple turns. If the error message indicates the issue (e.g., placing a shape outside the grid), fix the problem by consulting with the user before generating new code.
+
+        Grid State Awareness
+          • The generated code runs on top of the current grid state.
+          • Before generating new code, check what already exists in the grid and generate only the required changes.
+          • Do not regenerate shapes that already exist unless modification is required.
+
+        Sequential Execution Awareness
+          • Each line of generated code modifies the grid state.
+          • After line 1 executes, the grid is already updated.
+          • Ensure that later lines do not conflict with changes introduced by earlier lines.
+
+        Skill Name Accuracy and Usage
+          • Skill names are sensitive. Example: wn, wns, and wb are different skills.
+          • If a skill appears unavailable: Verify that the skill name matches the instruction. If the name is correct but still unavailable, ask the user how to build it. Do not continue using an incorrect skill.
+          • Do not import any additional skill libraries. Use the skill API directly with the correct arguments. Ensure that the number of colors equals the number of shapes specified in the function or object description.
+
         Given:
         - prompt: Prompt with the following details:
             - LEARNED SKILLS: Learned skills to use to place objects on the grid.

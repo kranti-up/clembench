@@ -185,6 +185,7 @@ class SkillRepeatMaster(DialogueGameMaster):
 
         self.genboard[variant] = None
         self.reuse_skills = []
+        self.curturn_skills = []
         self.player_grid_match_status = False
         self.player_grid = None
         self.player_occupied_cells = None
@@ -229,7 +230,10 @@ class SkillRepeatMaster(DialogueGameMaster):
 
         if self.skillandtargetcellsdiscrep:
             self.optimfunc_occupied_cells = self.prepare_ascii_rep.get_occupied_cells(self.gtcode, self.board_info["size"])
-            self.optimfunc_occupied_cells = {k: [list(x) for x in v] for k, v in self.optimfunc_occupied_cells.items()} 
+            if self.optimfunc_occupied_cells:
+                self.optimfunc_occupied_cells = {k: [list(x) for x in v] for k, v in self.optimfunc_occupied_cells.items()} 
+            else:
+                logger.info(f"Optim function occupied cells is empty for variant {variant} with skill {self.board_info['combo_name']}.GTCode:\n{self.gtcode}")
 
 
 
@@ -552,7 +556,7 @@ class SkillRepeatMaster(DialogueGameMaster):
         if self.gt_occupied_cells is None or self.player_occupied_cells is None:
             return None
 
-        if not self.use_skills:
+        if not self.use_skills or (self.use_skills and not self.reuse_skills) or not self.curturn_skills:
             difference_grid = self.prepare_ascii_rep.get_layer_representation_diff(self.gt_occupied_cells, self.player_occupied_cells)
         else:
             logger.info(f"Goal grid:\n{self.player_a_goal}, {type(self.player_a_goal)}")                
@@ -576,7 +580,10 @@ class SkillRepeatMaster(DialogueGameMaster):
 
 
     def _prepare_playera_turn_response(self, user_instruction):
-        p1_data = self.turn_prompt_b[self.current_task]
+        if self.current_task_turns != 0:
+            p1_data = self.turn_prompt_b[self.current_task]
+        else:
+            p1_data = ""
         use_current_grid = self._get_current_filled_grid()
 
         #if self.use_skills:
@@ -729,22 +736,28 @@ class SkillRepeatMaster(DialogueGameMaster):
             logger.info("Clear function detected in reuse task; resetting reuse skills.")
             self.reuse_skills = []
 
-
+        logger.info(f"Current reuse skills before update: {self.reuse_skills}")
         for func_name, func_colors, func_x, func_y in zip(func_name_list, func_colors_list, func_x_list, func_y_list):
             self.reuse_skills.append({"name": func_name, "colors": func_colors, "x": int(func_x), "y": int(func_y)})
+            self.curturn_skills.append({"name": func_name, "colors": func_colors, "x": int(func_x), "y": int(func_y)})
+        logger.info(f"Updated reuse skills after processing player B response: {self.reuse_skills}")
+        logger.info(f"Current Turn skills after processing player B response: {self.curturn_skills}")
         return True, None 
 
     def _prepare_repeat_board_representation(self, details: str):      
         if self.current_task == "repeat" and self.use_skills:
+            self.curturn_skills = []
             combo_name = self.board_info["combo_name"]
-            func_name_list, func_colors_list, func_x_list, func_y_list = self.prepare_ascii_rep.get_func_details(details, combo_name)
-            return self._compare_reuse_function_data(details, func_name_list, func_colors_list, func_x_list, func_y_list)
+            func_name_list, func_colors_list, func_x_list, func_y_list, error = self.prepare_ascii_rep.get_func_details(details, combo_name)
+            if not error:
+                return self._compare_reuse_function_data(details, func_name_list, func_colors_list, func_x_list, func_y_list)
+            return False, error
         return True, None
     
     def _prepare_level_rep(self, board_gen_call: Dict) -> Tuple[str, List]:
         gen_ascii_rep, gen_occupied_cells = None, None
 
-        if not self.use_skills:
+        if not self.use_skills or (self.use_skills and not self.reuse_skills) or not self.curturn_skills:
             logger.info("Calling get_ascii_representation to generate ASCII representation")
             gen_ascii_rep, gen_occupied_cells = self.prepare_ascii_rep.get_ascii_representation_from_board_layers(board_gen_call, self.board_info["size"])
         else:
@@ -763,16 +776,11 @@ class SkillRepeatMaster(DialogueGameMaster):
                 if self.genresponse[self.current_task]:
                     self.genresponse[self.current_task][-1]["code_execution_error"].append({"error": error, "response": {"status": "code", "details": details}})                
                 return None, error
-
-            self._update_task_progress("code_execution", code_stats)
               
             status, error = self._prepare_repeat_board_representation(details)
             if not status:
                 logger.error(f"Error in repeat function data extraction: {error}")
                 return None, error
-
-            logger.info("Storing generated board state.")
-            self.genboard[self.current_task] = copy.deepcopy(board_gen_call)
 
             logger.info("Preparing ASCII representation from generated board state.")
             gen_ascii_rep, gen_occupied_cells = self._prepare_level_rep(board_gen_call)
@@ -782,6 +790,11 @@ class SkillRepeatMaster(DialogueGameMaster):
                     return None, "Error generating ASCII representation from generated response."
 
             logger.info(f"Generated ASCII representation:\n{gen_ascii_rep}")
+
+            logger.info("Storing generated board state.")
+            self.genboard[self.current_task] = copy.deepcopy(board_gen_call)
+
+            self._update_task_progress("code_execution", code_stats)            
 
             #logger.info(self.genresponse[self.current_task])
 
